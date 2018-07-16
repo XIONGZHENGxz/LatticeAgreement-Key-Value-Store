@@ -74,7 +74,8 @@ public class GlaServer extends Server{
 		}
 	}
 
-	public Response handleRequest(Request request) {
+	public Response handleRequest(Object obj) {
+		Request request = (Request) obj;	
 		Op req = request.op;
 
 		if (req.type.equals("checkComp")) {

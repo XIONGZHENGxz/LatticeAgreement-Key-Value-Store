@@ -16,6 +16,7 @@ public class ClientListener extends Thread{
 
     public ClientListener(Client server, int port) {
         this.port = port;
+		System.out.println("listening "+port);
         this.server = server;
     }
 

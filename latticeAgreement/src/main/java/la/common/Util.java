@@ -14,20 +14,19 @@ import java.io.FileReader;
 import la.crdt.*;
 
 public class Util {
-	public static int s_port = 18861;
-	public static int c_port = 18862;
-	public static int la_port = 18863;
+	public static int c_port = 1886;
 	public static int interval = 10;
 	public static int syncFreq = 5000;
 	public static int loop = 1000;
 	public static int freq = 7;
 	public static double fp = 0.00;
-	public static boolean DEBUG = false;
+	public static boolean DEBUG = true;
 	public static int clock = 0;
 	public static String checker_host = "192.168.12.13";
 	public static final String[] types = {"get", "put", "remove"};
 	public static String opFile = "ops.txt";
-	public static String configFile = "config.txt";
+	public static String la_config = "config/la_config.txt";
+	public static String cass_config = "config/cassandra_config.txt";
 	public static Random rand = new Random();
 	public static final int TIMEOUT = 20;
 
@@ -60,9 +59,9 @@ public class Util {
 		return ops;
 	}
 
-	public static void readConf(List<String> peers, List<Integer> ports) {
+	public static void readConf(List<String> peers, List<Integer> ports, String config) {
 		try {
-			BufferedReader bf = new BufferedReader(new FileReader(configFile));
+			BufferedReader bf = new BufferedReader(new FileReader(config));
 			String line = "";
 			while((line = bf.readLine()) != null) {
 				String[] tmp = line.split(":");		
@@ -73,9 +72,9 @@ public class Util {
 		} catch(Exception e) {}
 	}
 
-	public static void readConf(List<String> peers, List<Integer> ports, List<Integer> s_ports) {
+	public static void readConf(List<String> peers, List<Integer> ports, List<Integer> s_ports, String config) {
 		try {
-			BufferedReader bf = new BufferedReader(new FileReader(configFile));
+			BufferedReader bf = new BufferedReader(new FileReader(config));
 			String line = "";
 			while((line = bf.readLine()) != null) {
 				String[] tmp = line.split(":");		

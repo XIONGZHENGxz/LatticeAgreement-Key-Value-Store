@@ -21,7 +21,7 @@ import la.common.Messager;
 class GlaClient extends Client {
 
 	public GlaClient(List<String> ops) { 
-		super(ops);
+		super(ops, Util.la_config);
 	}
 
 	public boolean checkComp() {

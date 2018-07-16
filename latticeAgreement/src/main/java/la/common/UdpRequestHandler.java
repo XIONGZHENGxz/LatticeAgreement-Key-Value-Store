@@ -18,16 +18,13 @@ public class UdpRequestHandler implements Runnable {
 
 	public void run() {
 		byte[] data = s.getData();
-		Request req = new Request();
+		Object obj = null;
 		try {
 			ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(data));
-			req = (Request) ois.readObject();
+			obj = ois.readObject();
 		} catch (Exception e) {
 			return;
 		}
-
-		int from = req.me;
-		if(Util.DEBUG) System.out.println("get request: "+req.toString() + " from " + from);
 
 		//simulate delay of message
 		if(rand.nextDouble() < Util.fp)  {
@@ -38,6 +35,6 @@ public class UdpRequestHandler implements Runnable {
 			}
 		}
 
-		server.handleRequest(req);
+		server.handleRequest(obj);
 	}
 }

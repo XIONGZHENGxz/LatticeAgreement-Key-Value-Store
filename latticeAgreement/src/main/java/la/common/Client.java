@@ -19,10 +19,10 @@ public class Client extends Thread{
 	public List<Integer> ports;
 	public List<String> ops;
 
-	public Client(List<String> ops) { 
+	public Client(List<String> ops, String config) { 
 		this.servers = new ArrayList<>();
 		this.ports = new ArrayList<>();
-		Util.readConf(servers, ports);
+		Util.readConf(servers, ports, config);
 		this.ops = ops;
 	}
 

@@ -55,8 +55,8 @@ public class CrdtServer extends Server implements Runnable {
 		c.start();
 	}
 
-	public Response handleRequest(Request request) {
-		CrdtRequest req = (CrdtRequest) request;
+	public Response handleRequest(Object obj) {
+		CrdtRequest req = (CrdtRequest) obj;
 		if(req.type.equals("merge")) return this.merge(req.map, req.logic_time);
 		else if(req.type.equals("check")) { 
 			this.check[0] = req.op.key;	
@@ -78,7 +78,7 @@ public class CrdtServer extends Server implements Runnable {
 			lock_up.lock();
 			lock_put.lock();
 			lock_rm.lock();
-			CrdtRequest req = new CrdtRequest("merge", null, this.store, Util.clock);
+			CrdtRequest req = new CrdtRequest("merge", this.store, Util.clock);
 			for(int i = 0; i < this.nbs.size(); i++){
 				int nb = this.nbs.get(i);
 				while(true) {	
@@ -147,7 +147,7 @@ public class CrdtServer extends Server implements Runnable {
 					lock_rm.unlock();
 				}
 
-				CrdtRequest req = new CrdtRequest("merge", null, new LWWMap(tem_a, tem_r), Util.clock);
+				CrdtRequest req = new CrdtRequest("merge", new LWWMap(tem_a, tem_r), Util.clock);
 
 				while(true) {	
 					int s = rand.nextInt(this.nbs.size());
@@ -207,7 +207,7 @@ public class CrdtServer extends Server implements Runnable {
 				lock_rm.unlock();
 			}
 
-			CrdtRequest req = new CrdtRequest("merge", null, new LWWMap(tem_a, tem_r), Util.clock);
+			CrdtRequest req = new CrdtRequest("merge", new LWWMap(tem_a, tem_r), Util.clock);
 
 			while(true) {	
 				int s = rand.nextInt(this.nbs.size());

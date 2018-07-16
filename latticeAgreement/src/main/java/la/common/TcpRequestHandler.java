@@ -13,7 +13,7 @@ class TcpRequestHandler implements Runnable {
 	}
 
 	public void run() {
-		Request req = (Request) Messager.getMsg(s);
+		Object obj = Messager.getMsg(s);
 
 		//simulate delay of message
 		if(rand.nextDouble() < Util.fp)  {
@@ -23,8 +23,7 @@ class TcpRequestHandler implements Runnable {
 				curr = Util.getCurrTime();
 			}
 		}
-		if(Util.DEBUG) System.out.println("get request: "+ req.toString());
-		Response resp = server.handleRequest(req);
+		Response resp = server.handleRequest(obj);
 		if(resp != null) Messager.sendMsg(resp, s);
 	}
 }

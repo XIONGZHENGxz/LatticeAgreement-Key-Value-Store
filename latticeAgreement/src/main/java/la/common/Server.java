@@ -15,7 +15,7 @@ public class Server {
 		peers = new ArrayList<>();
 		ports = new ArrayList<>();
 		List<Integer> tmp = new ArrayList<>();
-		Util.readConf(peers, tmp, ports);
+		Util.readConf(peers, tmp, ports, Util.la_config);
 		this.port = tmp.get(id);
 	}
 
@@ -26,7 +26,7 @@ public class Server {
 		this.port = port;
 	}
 
-	public Response handleRequest(Request req) {
+	public Response handleRequest(Object req) {
 		return null;
 	}
 }

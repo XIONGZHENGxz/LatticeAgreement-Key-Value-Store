@@ -17,19 +17,33 @@ class CrdtClient extends Client{
 
 	public ClientListener cl;
 	public int check_count;
-	public CrdtClient(List<String> ops) { 
-		super(ops);
+
+	public CrdtClient(List<String> ops, int port) {
+		super(ops, Util.la_config);
 		this.check_count = 0;
-		cl = new ClientListener(this, Util.c_port);
+		cl = new ClientListener(this, port);
 		cl.start();
 	}
+		
+	public CrdtClient(List<String> ops) { 
+		super(ops, Util.la_config);
+	}
 
-	public Response handleRequest(Request req) {
+	public Response executeOp(Op op) {
+		while(true) {
+			int s = Util.decideServer(this.servers.size());
+			CrdtRequest req = new CrdtRequest("client", op);
+			Response resp = (Response) Messager.sendAndWaitReply(req, this.servers.get(s), this.ports.get(s));
+			if(resp != null && resp.ok) return resp;
+		}
+	}
+
+	public Response handleRequest(Object req) {
 		if(req != null) this.check_count ++;
 		return null;
 	}
 
-	public void sendReq(Request req, int peer) {
+	public void sendReq(CrdtRequest req, int peer) {
 		while(true) {
 			boolean sent = Messager.sendMsg(req, this.servers.get(peer), this.ports.get(peer));
 			if(sent) break;
@@ -40,12 +54,12 @@ class CrdtClient extends Client{
 		String[] item = op.split("\\s");
 
 		Op ope = new Op(item[0], item[1], item.length < 3 ? "": item[2]);
-		Request r = new Request("client", ope);
+		CrdtRequest r = new CrdtRequest("client", ope);
 
 		long start = Util.getCurrTime();
 		while(true) {
 			int s = Util.decideServer(this.servers.size());
-			Response resp  = (Response) Messager.sendAndWaitReply(r, this.servers.get(s), Util.s_port);
+			Response resp  = (Response) Messager.sendAndWaitReply(r, this.servers.get(s), this.ports.get(s));
 			if(resp != null && resp.ok) break;
 		}
 
@@ -54,7 +68,7 @@ class CrdtClient extends Client{
 		} else if(item[0].equals("put")) {
 			start = Util.getCurrTime();
 			Op predicate = new Op("check", item[1], item[2]);
-			Request req = new Request("check", predicate);
+			CrdtRequest req = new CrdtRequest("check", predicate);
 			for(int i = 0; i < this.servers.size(); i++) this.sendReq(req, i);
 
 			while(this.check_count < this.servers.size()) {
@@ -80,13 +94,13 @@ class CrdtClient extends Client{
 		double ratio = Double.parseDouble(args[4]);
 
 		if(args[5].equals("t")) {
-		List<String> ops1 = Util.ops_generator(num_ops, max, val_len, coef, ratio);
-		List<String> ops2 = Util.ops_generator(num_ops, max, val_len, coef, ratio);
-		List<String> ops3 = Util.ops_generator(num_ops, max, val_len, coef, ratio);
+			List<String> ops1 = Util.ops_generator(num_ops, max, val_len, coef, ratio);
+			List<String> ops2 = Util.ops_generator(num_ops, max, val_len, coef, ratio);
+			List<String> ops3 = Util.ops_generator(num_ops, max, val_len, coef, ratio);
 
-		CrdtClient c1 = new CrdtClient(ops1);
-		CrdtClient c2 = new CrdtClient(ops2);
-		CrdtClient c3 = new CrdtClient(ops3);
+			CrdtClient c1 = new CrdtClient(ops1);
+			CrdtClient c2 = new CrdtClient(ops2);
+			CrdtClient c3 = new CrdtClient(ops3);
 			ExecutorService es = Executors.newFixedThreadPool(5);
 			es.execute(c1);
 			es.execute(c2);
@@ -107,7 +121,7 @@ class CrdtClient extends Client{
 
 		} else {
 			List<String> ops = Util.ops_generator(num_ops, max, val_len, coef, ratio);
-			CrdtClient c = new CrdtClient(ops);
+			CrdtClient c = new CrdtClient(ops, Util.c_port);
 
 			long putTime = 0, getTime = 0;
 			int putCount = 0, getCount = 0;

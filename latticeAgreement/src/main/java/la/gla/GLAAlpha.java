@@ -216,7 +216,9 @@ public class GLAAlpha extends Server implements Runnable {
 		Messager.sendPacket(req, this.s.peers.get(peer), this.ports.get(peer));
 	}
 
-	public Response handleRequest(Request req) {
+	public Response handleRequest(Object obj) {
+		Request req = (Request) obj;
+
 		if(req.type.equals("proposal")) {
 			if(Util.DEBUG) System.out.println(this.me + " received proposal "+ req.val + " from "+ req.me + " for seq " + req.seq + " for round" + req.round); 
 
