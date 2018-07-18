@@ -60,7 +60,7 @@ class MglaClient extends Client {
 					if(!comparable(values[i].get(seq), values[j].get(seq))) {
 						System.out.println(i + " and " + j + " incomparable "+ seq+ " \n" + LVs[i].get(seq)+ "\n" + LVs[j].get(seq));
 						Set<Op> tmp1 = new HashSet<>(values[i].get(seq));
-						
+
 						values[i].get(seq).removeAll(values[j].get(seq));
 						values[j].get(seq).removeAll(tmp1);
 						System.out.println("\n" + values[i].get(seq)+ "\n" + values[j].get(seq));
@@ -82,30 +82,36 @@ class MglaClient extends Client {
 		int val_len = Integer.parseInt(args[2]);
 		double coef = Double.parseDouble(args[3]);
 		double ratio = Double.parseDouble(args[4]);
+		int num_threads = Util.THREADS;
+		CyclicBarrier gate = new CyclicBarrier(num_threads);
 
-		List<String> ops1 = Util.ops_generator(num_ops, max, val_len, coef, ratio);
-		List<String> ops2 = Util.ops_generator(num_ops, max, val_len, coef, ratio);
-		List<String> ops3 = Util.ops_generator(num_ops, max, val_len, coef, ratio);
-		MglaClient c1 = new MglaClient(ops1);
-		MglaClient c2 = new MglaClient(ops2);
-		MglaClient c3 = new MglaClient(ops3);
+		if(args[5].equals("t")) {
+			List<String>[] ops = new ArrayList[num_threads];
+			MglaClient[] clients = new MglaClient[num_threads];
 
-		ExecutorService es = Executors.newFixedThreadPool(5);
-		es.execute(c1);
-		es.execute(c2);
-		es.execute(c3);
-		boolean ok = false;
-		long start = Util.getCurrTime();
-		try {
-			es.shutdown();
-			ok = es.awaitTermination(2, TimeUnit.MINUTES);
-		} catch(Exception e) {}
+			for(int i = 0; i < num_threads; i++) {
+				ops[i] = Util.ops_generator(num_ops, max, val_len, coef, ratio);
+				clients[i] = new MglaClient(ops[i], gate);
+			}
 
-		if(!ok) System.out.println("incomplete simulation....");
+			ExecutorService es = Executors.newFixedThreadPool(num_threads);
+			for(int i = 0; i < num_threads; i++) {
+				es.execute(clients[i]);
+			}
 
-		long time = Util.getCurrTime() - start;
+			boolean ok = false;
+			long start = Util.getCurrTime();
+			try {
+				es.shutdown();
+				ok = es.awaitTermination(2, TimeUnit.MINUTES);
+			} catch(Exception e) {}
 
-		System.out.println("time taken to complete "+ time);
-		System.out.println("throughtput "+ (double)3*num_ops / (double)time);
+			if(!ok) System.out.println("incomplete simulation....");
+
+			long time = Util.getCurrTime() - start;
+
+			System.out.println("time taken to complete "+ time);
+			System.out.println("throughtput "+ (double) num_threads*num_ops / (double)time);
+		} 
 	}
 }

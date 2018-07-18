@@ -10,9 +10,13 @@ import java.util.Random;
 public class TcpListener extends Thread{
 	public ServerSocket serverSocket;
 	public Server server;
+	public boolean fail;
+	public Random rand;
 	
 	public TcpListener(Server server, int port) {
 		this.server = server;
+		this.fail = false;
+		this.rand = new Random();
 		try {
 			serverSocket = new ServerSocket(port);
 		} catch (Exception e) {
@@ -24,6 +28,13 @@ public class TcpListener extends Thread{
 		while(true) {
 			try {
 				Socket packet  = serverSocket.accept();
+				if(this.fail) {
+					try {
+					Thread.sleep(Util.fail + rand.nextInt());
+					} catch (Exception e) {}
+					this.fail = false;
+					continue;
+				}
 				Thread t = new Thread(new TcpRequestHandler(this.server, packet));
 				t.start();
 			} catch (Exception e) {

@@ -94,7 +94,10 @@ public class MglaServer extends Server{
 
 		if(request.type.equals("proposal")) 
 			this.acceptor.handleProposal(request);
-		else if(request.type.equals("client")) {
+		else if(request.type.equals("down")) {
+			this.tcp.fail = true;
+			this.udp.fail = true;
+		} else if(request.type.equals("client")) {
 			Op req = request.op;
 			if(req.type.equals("checkComp")) 
 				return null;
@@ -116,7 +119,6 @@ public class MglaServer extends Server{
 		Op noop = new Op("noop", kid, "");
 		this.executeUpdate(noop);
 		String val = this.store.get(key);
-		System.out.println(val == null);
 		if(val != null) {
 			res.ok = true;
 			res.val = val;
@@ -125,11 +127,13 @@ public class MglaServer extends Server{
 	}
 
 	public void apply() {
+		synchronized (this.proposer.learntValues) {
 		for(Op o : this.proposer.learntValues) {
 			if(this.log.contains(o)) continue;
 			if(o.type.equals("put")) this.put(o.key, o.val);
 			else if(o.type.equals("remove")) this.remove(o.key);
 			this.log.add(o);
+		}
 		}
 	}
 

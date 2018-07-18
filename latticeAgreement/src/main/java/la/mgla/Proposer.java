@@ -62,7 +62,9 @@ public class Proposer implements Runnable {
 
 			while(this.buffVal.size() > 0 || this.propVal.size() > 0) { 
 				synchronized (this.propVal) {
-					this.propVal.addAll(this.buffVal);
+					synchronized (this.buffVal) {
+						this.propVal.addAll(this.buffVal);
+					}
 				}
 
 				/* keep proposing until got majority of accept */
@@ -71,15 +73,18 @@ public class Proposer implements Runnable {
 					if(Util.DEBUG) System.out.println(this.s.me + " start seq " + this.seq);
 					Set<Op> tmp = null;
 					synchronized(this.propVal) {
+						this.propVal.removeAll(this.learntValues);
+						if(this.propVal.size() == 0) break;
 						tmp = new HashSet<>(this.propVal);
 					}
-					Request req = new Request("proposal", tmp, this.seq, this.s.me);
+					if(Util.DEBUG) System.out.println("propose "+ tmp);
+					Request req = new Request("proposal", new HashSet<Op>(tmp), this.seq, this.s.me);
 					this.ack = 0;
 					this.count = 0;
 					this.received = new HashSet<>();
 					this.broadCast(req);
 					int loop = 0;
-					while(this.count < this.n / 2) {
+					while(this.count < (this.n + 1) / 2) {
 						if(Util.DEBUG) System.out.println("waiting for ack " + this.count + " received "+ this.received);
 						loop ++;
 						if(loop % 10 == 0) this.broadCast(req, received);
@@ -88,15 +93,19 @@ public class Proposer implements Runnable {
 						} catch (Exception e) {}
 					}
 
-					if(Util.DEBUG) System.out.println(this.s.me + " got majority acks");
+					if(Util.DEBUG) System.out.println(this.s.me + " got majority acks " + this.count);
 
 					if(this.ack > this.n / 2) {
-						this.learntValues.addAll(tmp);
-						this.propVal.removeAll(tmp);
+						synchronized (this.learntValues) {
+							this.learntValues.addAll(tmp);
+						}
+						synchronized (this.propVal) {
+							this.propVal.removeAll(tmp);
+						}
 						synchronized (this.buffVal) {
 							this.buffVal.removeAll(tmp);
 						}
-						Request learntReq = new Request("learnt", tmp);
+						Request learntReq = new Request("learnt", tmp, this.seq, this.s.me);
 						this.broadCast(learntReq);
 						break;
 					}  
@@ -139,11 +148,13 @@ public class Proposer implements Runnable {
 	public void receiveClient(Op op) {
 		this.receive(op);
 		Request req = new Request("serverVal", op);
-		this.broadCast(req);
+		this.broadCast(req, new HashSet<Integer>());
 	}
 
 	public void receive(Op op) {
-		if(this.learntValues.contains(op)) return;
+		synchronized (this.learntValues) {
+			if(this.learntValues.contains(op)) return;
+		}
 		//the agree procedure may break while loop, but not check this.active yet.
 		synchronized (this.buffVal) {
 			this.buffVal.add(op);
@@ -171,9 +182,22 @@ public class Proposer implements Runnable {
 					this.received.add(req.me);
 				}
 			} else if(req.type.equals("learnt")){ 
-				this.learntValues.addAll(req.val);
+				synchronized (this.learntValues) {
+					this.learntValues.addAll(req.val);
+				}
 				synchronized (this.propVal) {
 					this.propVal.removeAll(req.val);
+				} 
+				synchronized (this.buffVal) {
+					this.buffVal.removeAll(req.val);
+				}
+				try {
+					this.s.lock.lock();
+					this.s.learnt.signalAll();
+				} catch (Exception e) {
+					e.printStackTrace();
+				} finally {
+					this.s.lock.unlock();
 				}
 			} else if(req.type.equals("serverVal")) {
 				this.receive(req.op);

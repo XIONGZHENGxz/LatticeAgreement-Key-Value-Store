@@ -28,6 +28,13 @@ public class Request implements Serializable{
 		this.type = type;
 		this.val = val;
 	}
+	
+	public Request(String type, Set<Op> val, int s, int me) {
+		this.type = type;
+		this.val = val;
+		this.seq = s;
+		this.me = me;
+	}
 
 	public Request(String type, Set<Op> val, int r, int s, int me) {
 		this.type = type;

@@ -10,6 +10,7 @@ import java.util.HashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.CyclicBarrier;
 
 import la.common.*;
 
@@ -18,8 +19,8 @@ class CrdtClient extends Client{
 	public ClientListener cl;
 	public int check_count;
 
-	public CrdtClient(List<String> ops, int port) {
-		super(ops, Util.la_config);
+	public CrdtClient(List<String> ops, int port, CyclicBarrier gate) {
+		super(ops, Util.la_config, gate);
 		this.check_count = 0;
 		cl = new ClientListener(this, port);
 		cl.start();
@@ -92,19 +93,23 @@ class CrdtClient extends Client{
 		int val_len = Integer.parseInt(args[2]);
 		double coef = Double.parseDouble(args[3]);
 		double ratio = Double.parseDouble(args[4]);
+		int num_threads = Util.THREADS;
+		CyclicBarrier gate = new CyclicBarrier(num_threads);
 
 		if(args[5].equals("t")) {
-			List<String> ops1 = Util.ops_generator(num_ops, max, val_len, coef, ratio);
-			List<String> ops2 = Util.ops_generator(num_ops, max, val_len, coef, ratio);
-			List<String> ops3 = Util.ops_generator(num_ops, max, val_len, coef, ratio);
+			List<String>[] ops = new ArrayList[num_threads];
+			CrdtClient[] clients = new CrdtClient[num_threads];
 
-			CrdtClient c1 = new CrdtClient(ops1);
-			CrdtClient c2 = new CrdtClient(ops2);
-			CrdtClient c3 = new CrdtClient(ops3);
-			ExecutorService es = Executors.newFixedThreadPool(5);
-			es.execute(c1);
-			es.execute(c2);
-			es.execute(c3);
+			for(int i = 0; i < num_threads; i++) {
+				ops[i] = Util.ops_generator(num_ops, max, val_len, coef, ratio);
+				clients[i] = new CrdtClient(ops[i], gate);
+			}
+
+			ExecutorService es = Executors.newFixedThreadPool(num_threads);
+			for(int i = 0; i < num_threads; i++) {
+				es.execute(clients[i]);
+			}
+
 			boolean ok = false;
 			long start = Util.getCurrTime();
 			try {
@@ -117,29 +122,32 @@ class CrdtClient extends Client{
 			long time = Util.getCurrTime() - start;
 
 			System.out.println("time taken to complete "+ time);
-			System.out.println("throughtput "+ (double)3*num_ops / (double)time);
+			System.out.println("throughtput "+ (double)num_threads*num_ops / (double)time);
 
-		} else {
+		} else if(args[5].equals("l")){
+			List<String> ops = Util.ops_generator(num_ops, max, val_len, coef, ratio);
+			CrdtClient c = new CrdtClient(ops);
+			long start = Util.getCurrTime();
+			c.start();
+			try {
+				c.join();
+			} catch (Exception e) {}
+
+			long time = Util.getCurrTime() - start;
+
+			double avg = time/(double)num_ops; 
+			System.out.println("latency: "+ avg);
+		} else if(args[5].equals("c")) {
 			List<String> ops = Util.ops_generator(num_ops, max, val_len, coef, ratio);
 			CrdtClient c = new CrdtClient(ops, Util.c_port);
-
-			long putTime = 0, getTime = 0;
-			int putCount = 0, getCount = 0;
+			long time = 0;
 			for(String op : c.ops) {
-				String[] item = op.split("\\s");
-				long duration = c.calcTime(op);
-				if(item[0].equals("put")) {
-					putTime += duration;
-					putCount ++;
-				} else if(item[0].equals("get")) {
-					getTime += duration;
-					getCount ++;
-				}
+				time += c.calcTime(op);
 			}
-
-			double avgPut = putTime/(double)putCount, avgGet = getTime/(double)getCount;
-			System.out.println("put "+ avgPut + "\n" + "get "+ avgGet + "\n");
-		}
+			double avg = time / (double) num_ops;
+			System.out.println("convergence: "+ avg);
+		} else System.err.println("invalid option...");
+			
 	}
 
 }

@@ -80,6 +80,9 @@ public class GlaServer extends Server{
 
 		if (req.type.equals("checkComp")) {
 			return new Response(true, this.gla.LV);
+		} else if(req.type.equals("down")){
+			this.l.fail = true;
+			this.gla.l.fail = true;
 		} else {
 			if(req.type.equals("get")) return this.get(req.key);
 			else if(req.type.equals("put") || req.type.equals("remove")) {

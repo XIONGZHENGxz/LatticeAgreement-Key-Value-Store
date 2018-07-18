@@ -15,6 +15,8 @@ import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.Row;
 import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Session;
+import com.datastax.driver.core.SimpleStatement;
+import com.datastax.driver.core.ConsistencyLevel;
 
 import la.common.Util;
 import la.common.Client;
@@ -44,6 +46,7 @@ public class CassClient extends Client{
 	public void connect(String[] contactPoints, int port) {
 		cluster = Cluster.builder().addContactPoints(contactPoints).withPort(port).build();
 		System.out.println("connected to cluster "+ cluster.getMetadata().getClusterName());
+
 		sess = cluster.connect();
 	}
 
@@ -55,7 +58,7 @@ public class CassClient extends Client{
 		
 		/* create table */
 		sess.execute("CREATE TABLE IF NOT EXISTS " + keyspaceName + "." + tableName + " (" + 
-		"key int PRIMARY KEY, val int)");
+		"key text PRIMARY KEY, val text)");
 
 		/* initialize table */
 		for(int i = 0; i < max; i++) {
@@ -68,8 +71,11 @@ public class CassClient extends Client{
 	public void get(String key) {
 		String cmd = "SELECT * from " + keyspaceName + "." + 
 			tableName + " WHERE key = " + "'" + key + "'";
+
+		SimpleStatement query = new SimpleStatement(cmd); 
+		query.setConsistencyLevel(ConsistencyLevel.QUORUM);
+		ResultSet results = sess.execute(query);
 		if(Util.DEBUG) System.out.println(cmd);
-		ResultSet results = sess.execute(cmd);
 		Row row = results.one();
 		System.out.println(row.getString("val"));
 	}
@@ -77,8 +83,10 @@ public class CassClient extends Client{
 	public void put(String key, String value) {
 		String cmd = "INSERT INTO " + keyspaceName + "." + tableName + " (key, val) " +
 		" values ('" + key + "', '" + value+ "');";
+		SimpleStatement query = new SimpleStatement(cmd);
 		if(Util.DEBUG) System.out.println(cmd);
-		sess.execute(cmd);
+		query.setConsistencyLevel(ConsistencyLevel.QUORUM);
+		sess.execute(query);
 	}
 		
 	public void close() {

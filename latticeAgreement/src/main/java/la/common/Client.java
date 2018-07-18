@@ -10,6 +10,7 @@ import java.util.HashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.CyclicBarrier;
 
 import la.common.Util;
 
@@ -18,18 +19,26 @@ public class Client extends Thread{
 	public List<String> servers;
 	public List<Integer> ports;
 	public List<String> ops;
+	public CyclicBarrier gate;
 
-	public Client(List<String> ops, String config) { 
+	public Client(List<String> ops, String config, CyclicBarrier gate) { 
 		this.servers = new ArrayList<>();
 		this.ports = new ArrayList<>();
 		Util.readConf(servers, ports, config);
 		this.ops = ops;
+		this.gate = gate;
 	}
 
 	public Response handleRequest(Request req) {
 		return null;
 	}
 
+	public void shutDown() {
+		Request req = new Request("down");
+		int s = Util.decideServer(this.servers.size());
+		Messager.sendMsg(req, this.servers.get(s), this.ports.get(s));
+	}
+		
 	public Response executeOp (Op op) {
 		while(true) {
 			int s = Util.decideServer(this.servers.size());
@@ -41,6 +50,7 @@ public class Client extends Thread{
 	
 	@Override
 	public void run() {
+		this.gate.await();
 		for(String op : this.ops) {
 			String[] item = op.split("\\s");
 			Op ope = null;

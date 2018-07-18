@@ -62,6 +62,7 @@ public class Acceptor {
 				Messager.sendPacket(resp, this.peers.get(req.me), this.ports.get(req.me));
 			} else {
 				Request resp = new Request("reject", this.accDeltas.get(propId), req.seq, this.s.me);
+				prop.removeAll(this.accDeltas.get(propId));
 				Messager.sendPacket(resp, this.peers.get(req.me), this.ports.get(req.me));
 				this.updateDeltas(prop, propId);
 			}

@@ -20,7 +20,7 @@ public class Util {
 	public static int loop = 1000;
 	public static int freq = 7;
 	public static double fp = 0.00;
-	public static boolean DEBUG = true;
+	public static boolean DEBUG = false;
 	public static int clock = 0;
 	public static String checker_host = "192.168.12.13";
 	public static final String[] types = {"get", "put", "remove"};
@@ -29,6 +29,8 @@ public class Util {
 	public static String cass_config = "config/cassandra_config.txt";
 	public static Random rand = new Random();
 	public static final int TIMEOUT = 20;
+	public static final int THREADS = 100;
+	public static final int fail = 10000;
 
 	public static long getCurrTime() {
 		return System.currentTimeMillis();
