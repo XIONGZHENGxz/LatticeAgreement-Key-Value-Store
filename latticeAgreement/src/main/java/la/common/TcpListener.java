@@ -28,6 +28,7 @@ public class TcpListener extends Thread{
 		while(true) {
 			try {
 				Socket packet  = serverSocket.accept();
+				/*
 				if(this.fail) {
 					try {
 					Thread.sleep(Util.fail + rand.nextInt());
@@ -35,6 +36,7 @@ public class TcpListener extends Thread{
 					this.fail = false;
 					continue;
 				}
+				*/
 				Thread t = new Thread(new TcpRequestHandler(this.server, packet));
 				t.start();
 			} catch (Exception e) {

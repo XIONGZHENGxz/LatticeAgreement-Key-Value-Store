@@ -23,7 +23,7 @@ public class UdpRequestHandler implements Runnable {
 			ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(data));
 			obj = ois.readObject();
 		} catch (Exception e) {
-			return;
+			e.printStackTrace();
 		}
 
 		//simulate delay of message
@@ -34,7 +34,7 @@ public class UdpRequestHandler implements Runnable {
 				curr = Util.getCurrTime();
 			}
 		}
-
+		if(obj != null)
 		server.handleRequest(obj);
 	}
 }

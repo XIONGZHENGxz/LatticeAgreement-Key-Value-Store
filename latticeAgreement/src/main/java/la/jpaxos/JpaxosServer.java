@@ -86,10 +86,10 @@ class JpaxosServer extends SimplifiedService {
 	public static void main(String...args) throws IOException {
 		int id = Integer.parseInt(args[0]);
 		
-		HashMap<String, String> map = Util.initMap(Integer.parseInt(args[2]));
+		HashMap<String, String> map = Util.initMap(Integer.parseInt(args[1]));
 
 
-		Replica replica = new Replica(new Configuration(args[1]), id, new JpaxosServer(map));
+		Replica replica = new Replica(new Configuration(args[2]), id, new JpaxosServer(map));
 
 		replica.start();
 

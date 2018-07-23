@@ -13,6 +13,7 @@ public class Messager {
 	public Object resp;
 	public int port;
 	public String host;
+
 	public Messager(boolean wait, Object msg, String host, int port) {
 		waitReply = wait;
 		this.msg = msg;
@@ -23,8 +24,9 @@ public class Messager {
 	
 	//send msg via datagram socket
 	public static void sendPacket(Object msg, String host, int port) {
+		DatagramSocket socket = null; 
 		try {
-			DatagramSocket socket = new DatagramSocket();
+			socket = new DatagramSocket();
 			ByteArrayOutputStream baos = new ByteArrayOutputStream();
 			ObjectOutputStream oos = new ObjectOutputStream(baos);
 			oos.writeObject(msg);
@@ -33,6 +35,12 @@ public class Messager {
 			socket.send(packet);
 		} catch(Exception e) {
 			e.printStackTrace();
+		} finally {
+			if(socket != null) {
+				try {
+					socket.close();
+				} catch (Exception e) {}
+			}
 		}
 	}
 		

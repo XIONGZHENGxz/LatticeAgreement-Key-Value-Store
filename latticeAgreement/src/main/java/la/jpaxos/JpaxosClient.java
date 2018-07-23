@@ -11,6 +11,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.CyclicBarrier;
+import java.text.DecimalFormat;
 
 import lsr.paxos.client.Client;
 import lsr.common.Configuration;
@@ -23,6 +24,7 @@ class JpaxosClient extends Thread{
 	public List<String> ops;
 	public Client client;
 	public CyclicBarrier gate;
+	public double latency;
 
 	public JpaxosClient(List<String> ops, String file, CyclicBarrier gate) { 
 		this.ops = ops;
@@ -34,7 +36,11 @@ class JpaxosClient extends Thread{
 
 	@Override
 		public void run() {
-			this.gate.await();
+			try {
+				this.gate.await();
+			} catch (Exception e) {}
+
+			long start = Util.getCurrTime(); 
 			client.connect();
 			for(String op : this.ops) {
 				String[] item = op.split("\\s");
@@ -66,6 +72,8 @@ class JpaxosClient extends Thread{
 					}
 				}
 			}
+			long time = Util.getCurrTime() - start;
+			this.latency = time / (double) this.ops.size();
 		}
 
 	public static void main(String...args) {
@@ -76,47 +84,39 @@ class JpaxosClient extends Thread{
 		double ratio = Double.parseDouble(args[4]);
 
 		String configFile = args[5];
-		int num_threads = Util.THREADS;
+		int num_threads = Integer.parseInt(args[6]);
 		CyclicBarrier gate = new CyclicBarrier(num_threads);
 
-		if(args[6].equals("t")) {
-			List<String>[] ops = new ArrayList[num_threads];
-			JpaxosClient[] clients = new JpaxosClient[num_threads];
+		List<String>[] ops = new ArrayList[num_threads];
+		JpaxosClient[] clients = new JpaxosClient[num_threads];
 
-			for(int i = 0; i < num_threads; i++) {
-				ops[i] = Util.ops_generator(num_ops, max, val_len, coef, ratio);
-				clients[i] = new JpaxosClient(ops[i], configFile, gate);
-			}
-
-			ExecutorService es = Executors.newFixedThreadPool(num_threads);
-			for(int i = 0; i < num_threads; i++) {
-				es.execute(clients[i]);
-			}
-
-			boolean ok = false;
-			long start = Util.getCurrTime();
-			try {
-				es.shutdown();
-				ok = es.awaitTermination(2, TimeUnit.MINUTES);
-			} catch(Exception e) {}
-
-			if(!ok) System.out.println("incomplete simulation....");
-
-			long time = Util.getCurrTime() - start;
-
-			System.out.println("time taken to complete "+ time);
-			System.out.println("throughtput "+ (double) num_threads*num_ops / (double)time);
-		} else {
-			List<String> ops = Util.ops_generator(num_ops, max, val_len, coef, ratio);
-			JpaxosClient c = new JpaxosClient(ops, configFile);
-			long start = Util.getCurrTime();
-			c.start();
-			try {
-				c.join();
-			} catch (Exception e) {}
-			long time = Util.getCurrTime() - start;
-			double avg = time / (double) num_ops;
-			System.out.println("latency: " +avg);
+		for(int i = 0; i < num_threads; i++) {
+			ops[i] = Util.ops_generator(num_ops, max, val_len, coef, ratio);
+			clients[i] = new JpaxosClient(ops[i], configFile, gate);
 		}
+
+		ExecutorService es = Executors.newFixedThreadPool(num_threads);
+		for(int i = 0; i < num_threads; i++) {
+			es.execute(clients[i]);
+		}
+
+		boolean ok = false;
+		long start = Util.getCurrTime();
+		try {
+			es.shutdown();
+			ok = es.awaitTermination(2, TimeUnit.MINUTES);
+		} catch(Exception e) {}
+
+		if(!ok) System.out.println("incomplete simulation....");
+		DecimalFormat df = new DecimalFormat("#.00"); 
+		double sum = 0.0;
+		for(int i = 0; i < num_threads; i++) {
+			sum += clients[i].latency;
+		}
+		double avgLatency = sum / num_threads;
+		long time = Util.getCurrTime() - start;
+
+		System.out.println(df.format((double) num_threads*num_ops / (double)time));
+		System.out.println(df.format(avgLatency));
 	}
 }

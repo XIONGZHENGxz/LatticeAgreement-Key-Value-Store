@@ -28,11 +28,13 @@ public class CrdtServer extends Server implements Runnable {
 	public boolean update;
 	public String[] check;
 	public int k;
+	public int freq;
 	public HashMap<String, Integer> a_count;
 	public HashMap<String, Integer> r_count;
 
-	public CrdtServer(int id) {
-		super(id);
+	public CrdtServer(int id, String config, int freq) {
+		super(id, config);
+		this.freq = freq;
 
 		this.nbs = new ArrayList<>();
 		for(int i = 0; i < this.peers.size(); i++) {
@@ -319,12 +321,14 @@ public class CrdtServer extends Server implements Runnable {
 	public static void main(String...args) {
 		int id = Integer.parseInt(args[0]);
 		int max = Integer.parseInt(args[1]);
-		CrdtServer s = new CrdtServer(id);
+		int freq = Integer.parseInt(args[2]);
+		CrdtServer s = new CrdtServer(id, args[3], freq);
+
 		Thread t = new Thread(s);
 		Util.initMap(s.store, max);
 
 		for(int i = 0; i < max; i++) {
-			s.a_count.put(String.valueOf(i), Util.freq);
+			s.a_count.put(String.valueOf(i), freq);
 		}
 		t.start();
 	}

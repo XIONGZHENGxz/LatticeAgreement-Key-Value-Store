@@ -29,7 +29,7 @@ public class Proposer implements Runnable {
 
 	public Set<Op> buffVal; //values need to be learned
 
-	public boolean active; //proposing or not
+	public volatile boolean active; //proposing or not
 
 	public int ack; //number of accept acks
 	public int count; //number of acks received 
@@ -60,7 +60,7 @@ public class Proposer implements Runnable {
 			lock.lock();
 			this.active = true;
 
-			while(this.buffVal.size() > 0 || this.propVal.size() > 0) { 
+			while(true) { 
 				synchronized (this.propVal) {
 					synchronized (this.buffVal) {
 						this.propVal.addAll(this.buffVal);
@@ -70,7 +70,6 @@ public class Proposer implements Runnable {
 				/* keep proposing until got majority of accept */
 				while(true) {
 					this.seq ++;
-					if(Util.DEBUG) System.out.println(this.s.me + " start seq " + this.seq);
 					Set<Op> tmp = null;
 					synchronized(this.propVal) {
 						this.propVal.removeAll(this.learntValues);
@@ -85,7 +84,7 @@ public class Proposer implements Runnable {
 					this.broadCast(req);
 					int loop = 0;
 					while(this.count < (this.n + 1) / 2) {
-						if(Util.DEBUG) System.out.println("waiting for ack " + this.count + " received "+ this.received);
+						if(Util.DEBUG) System.out.println("waiting for ack..." + this.received);
 						loop ++;
 						if(loop % 10 == 0) this.broadCast(req, received);
 						try {
@@ -120,8 +119,16 @@ public class Proposer implements Runnable {
 				} finally {
 					this.s.lock.unlock();
 				}
+
+				synchronized (this.buffVal) {
+					synchronized (this.propVal) {
+						if(this.buffVal.size() == 0 || this.propVal.size() == 0) { 
+							this.active = false;
+							break;
+						}
+					}
+				}
 			}
-			this.active = false;
 		} finally {
 			lock.unlock();
 		}
@@ -140,7 +147,7 @@ public class Proposer implements Runnable {
 
 	public void broadCast(Request req) {
 		for(int i = 0; i < this.n; i++) {
-			if(i == this.s.me) this.s.handleRequest(req);
+			if(i == this.s.me) this.s.acceptor.handleProposal(req);
 			else this.sendUdp(req, i);
 		}
 	}

@@ -20,6 +20,7 @@ public class Client extends Thread{
 	public List<Integer> ports;
 	public List<String> ops;
 	public CyclicBarrier gate;
+	public double latency;
 
 	public Client(List<String> ops, String config, CyclicBarrier gate) { 
 		this.servers = new ArrayList<>();
@@ -50,7 +51,11 @@ public class Client extends Thread{
 	
 	@Override
 	public void run() {
-		this.gate.await();
+		try {
+			this.gate.await();
+		} catch (Exception e) {}
+
+		long start = Util.getCurrTime();
 		for(String op : this.ops) {
 			String[] item = op.split("\\s");
 			Op ope = null;
@@ -59,5 +64,7 @@ public class Client extends Thread{
 			else ope = new Op(item[0], item[1], "");
 			this.executeOp(ope);
 		}
+		long time = Util.getCurrTime() - start;
+		this.latency = time / (double) this.ops.size();
 	}
 }

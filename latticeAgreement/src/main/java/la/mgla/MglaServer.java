@@ -48,8 +48,8 @@ public class MglaServer extends Server{
 
 	public UdpListener udp;
 
-	public MglaServer(int id) {
-		super(id);
+	public MglaServer(int id, String config) {
+		super(id, config);
 		this.store = new LWWMap(id);
 		this.exeInd = -1;
 		this.log = new HashSet<>();
@@ -89,6 +89,7 @@ public class MglaServer extends Server{
 	}
 
 	public Response handleRequest(Object obj) {
+		if(obj == null) return null;
 		Request request = (Request) obj;	
 		if(Util.DEBUG) System.out.println("get request: "+ request);
 
@@ -215,7 +216,7 @@ public class MglaServer extends Server{
 		int id = Integer.parseInt(args[0]);
 		long max = Long.parseLong(args[1]);
 
-		MglaServer s = new MglaServer(id);
+		MglaServer s = new MglaServer(id, args[2]);
 		s.init(max);
 	}
 

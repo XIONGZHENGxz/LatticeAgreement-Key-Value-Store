@@ -49,6 +49,7 @@ public class Acceptor {
 			Set<Op> prop = req.val;
 			int propId = req.me;
 			this.acceptVal.addAll(prop);
+			if(Util.DEBUG) System.out.println("handling proposal "+ req);
 			if(!this.accDeltas.containsKey(propId)) {
 				this.updateDeltas(prop, propId);	
 				Request resp = new Request("reject", this.acceptVal, req.seq, this.s.me);

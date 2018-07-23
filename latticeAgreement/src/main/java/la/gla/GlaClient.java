@@ -11,6 +11,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.CyclicBarrier;
+import java.text.DecimalFormat;
 
 import la.common.Client;
 import la.common.Util;
@@ -21,8 +22,8 @@ import la.common.Messager;
 
 class GlaClient extends Client {
 
-	public GlaClient(List<String> ops, CyclicBarrier gate) { 
-		super(ops, Util.la_config, gate);
+	public GlaClient(List<String> ops, String config, CyclicBarrier gate) { 
+		super(ops, config, gate);
 	}
 
 	public boolean checkComp() {
@@ -83,47 +84,43 @@ class GlaClient extends Client {
 		int val_len = Integer.parseInt(args[2]);
 		double coef = Double.parseDouble(args[3]);
 		double ratio = Double.parseDouble(args[4]);
-		int num_threads = Util.THREADS;
+		String config = args[5];
+
+		int num_threads = Integer.parseInt(args[6]);
 		CyclicBarrier gate = new CyclicBarrier(num_threads);
 
-		if(args[5].equals("t")) {
-			List<String>[] ops = new ArrayList[num_threads];
-			GlaClient[] clients = new GlaClient[num_threads];
+		List<String>[] ops = new ArrayList[num_threads];
+		GlaClient[] clients = new GlaClient[num_threads];
 
-			for(int i = 0; i < num_threads; i++) {
-				ops[i] = Util.ops_generator(num_ops, max, val_len, coef, ratio);
-				clients[i] = new GlaClient(ops[i], gate);
-			}
+		for(int i = 0; i < num_threads; i++) {
+			ops[i] = Util.ops_generator(num_ops, max, val_len, coef, ratio);
+			clients[i] = new GlaClient(ops[i], config, gate);
+		}
 
-			ExecutorService es = Executors.newFixedThreadPool(num_threads);
-			for(int i = 0; i < num_threads; i++) {
-				es.execute(clients[i]);
-			}
+		ExecutorService es = Executors.newFixedThreadPool(num_threads);
+		for(int i = 0; i < num_threads; i++) {
+			es.execute(clients[i]);
+		}
 
-			boolean ok = false;
-			long start = Util.getCurrTime();
-			try {
-				es.shutdown();
-				ok = es.awaitTermination(2, TimeUnit.MINUTES);
-			} catch(Exception e) {}
+		boolean ok = false;
+		long start = Util.getCurrTime();
+		try {
+			es.shutdown();
+			ok = es.awaitTermination(10, TimeUnit.MINUTES);
+		} catch(Exception e) {}
+	
+		if(!ok) System.out.println("incomplete simulation....");
 
-			if(!ok) System.out.println("incomplete simulation....");
+		DecimalFormat df = new DecimalFormat("#.00"); 
+		long time = Util.getCurrTime() - start;
+		double th = (double) num_threads * 1000 * num_ops / (double) time;
 
-			long time = Util.getCurrTime() - start;
-
-			System.out.println("time taken to complete "+ time);
-			System.out.println("throughtput "+ (double) num_threads*num_ops / (double)time);
-		} else {
-			List<String> ops = Util.ops_generator(num_ops, max, val_len, coef, ratio);
-			GlaClient c = new GlaClient(ops);
-			long start = Util.getCurrTime();
-			c.start();
-			try {
-				c.join();
-			} catch(Exception e) {}
-			long time = Util.getCurrTime() - start;
-			double avg = time / (double) num_ops;
-			System.out.println("latency " + avg);
-		}	
+		System.out.println(df.format(th));
+		double sum = 0.0;
+		for(int i = 0; i < num_threads; i++) {
+			sum += clients[i].latency;
+		}
+		double avgLatency = sum / num_threads;
+		System.out.println(df.format(avgLatency));
 	}
 }

@@ -10,6 +10,7 @@ import java.util.HashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.CyclicBarrier;
 
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.Row;
@@ -24,7 +25,7 @@ import la.common.Response;
 import la.common.Op;
 
 public class CassClient extends Client{
-	
+
 	private Cluster cluster;
 
 	private Session sess;
@@ -32,11 +33,11 @@ public class CassClient extends Client{
 	private static String tableName = "lattice";
 
 	private static String keyspaceName = "xiong";
-	
+
 	private int factor;
 
-	public CassClient(List<String> ops, int factor, int max) { 
-		super(ops, Util.cass_config);
+	public CassClient(List<String> ops, int factor, int max, CyclicBarrier gate) { 
+		super(ops, Util.cass_config, gate);
 		this.factor = factor;
 		String[] points = this.servers.toArray(new String[this.servers.size()]);
 		this.connect(points, this.ports.get(0));
@@ -53,12 +54,12 @@ public class CassClient extends Client{
 	public void createTable(int max) {
 		/* create the keyspace */
 		sess.execute("CREATE KEYSPACE IF NOT EXISTS " + keyspaceName+ " WITH REPLICATION " + 
-		"= {'class': 'SimpleStrategy', 'replication_factor': " + String.valueOf(factor) + 
-		"}");
-		
+				"= {'class': 'SimpleStrategy', 'replication_factor': " + String.valueOf(factor) + 
+				"}");
+
 		/* create table */
 		sess.execute("CREATE TABLE IF NOT EXISTS " + keyspaceName + "." + tableName + " (" + 
-		"key text PRIMARY KEY, val text)");
+				"key text PRIMARY KEY, val text)");
 
 		/* initialize table */
 		for(int i = 0; i < max; i++) {
@@ -67,7 +68,7 @@ public class CassClient extends Client{
 			this.put(key, val);
 		}
 	}
-	
+
 	public void get(String key) {
 		String cmd = "SELECT * from " + keyspaceName + "." + 
 			tableName + " WHERE key = " + "'" + key + "'";
@@ -82,13 +83,13 @@ public class CassClient extends Client{
 
 	public void put(String key, String value) {
 		String cmd = "INSERT INTO " + keyspaceName + "." + tableName + " (key, val) " +
-		" values ('" + key + "', '" + value+ "');";
+			" values ('" + key + "', '" + value+ "');";
 		SimpleStatement query = new SimpleStatement(cmd);
 		if(Util.DEBUG) System.out.println(cmd);
 		query.setConsistencyLevel(ConsistencyLevel.QUORUM);
 		sess.execute(query);
 	}
-		
+
 	public void close() {
 		sess.close();
 		cluster.close();
@@ -108,40 +109,47 @@ public class CassClient extends Client{
 		double coef = Double.parseDouble(args[3]);
 		double ratio = Double.parseDouble(args[4]);
 		int replica_factor = Integer.parseInt(args[5]);
+		int num_threads = Util.THREADS;
+		CyclicBarrier gate = new CyclicBarrier(num_threads);
 
-		List<String> ops1 = Util.ops_generator(num_ops, max, val_len, coef, ratio);
-		List<String> ops2 = Util.ops_generator(num_ops, max, val_len, coef, ratio);
-		List<String> ops3 = Util.ops_generator(num_ops, max, val_len, coef, ratio);
+		if(args[6].equals("t")) {
+			List<String>[] ops = new ArrayList[num_threads];
+			CassClient[] clients = new CassClient[num_threads];
 
-		CassClient c1 = new CassClient(ops1, replica_factor, (int)max);
-		CassClient c2 = new CassClient(ops2, replica_factor, (int)max);
-		CassClient c3 = new CassClient(ops3, replica_factor, (int)max);
+			for(int i = 0; i < num_threads; i++) {
+				ops[i] = Util.ops_generator(num_ops, max, val_len, coef, ratio);
+				clients[i] = new CassClient(ops[i], replica_factor, (int) max, gate);
+			}
 
-		ExecutorService es = Executors.newFixedThreadPool(5);
-		es.execute(c1);
-		es.execute(c2);
-		es.execute(c3);
-		boolean ok = false;
-		long start = Util.getCurrTime();
-		try {
-			es.shutdown();
-			ok = es.awaitTermination(2, TimeUnit.MINUTES);
-		} catch(Exception e) {}
-	
+			ExecutorService es = Executors.newFixedThreadPool(num_threads);
+			for(int i = 0; i < num_threads; i++) {
+				es.execute(clients[i]);
+			}
 
-		if(!ok) System.out.println("incomplete simulation....");
+			boolean ok = false;
+			long start = Util.getCurrTime();
+			try {
+				es.shutdown();
+				ok = es.awaitTermination(2, TimeUnit.MINUTES);
+			} catch(Exception e) {}
 
-		long time = Util.getCurrTime() - start;
 
-		c1.close();
-		c2.close();
-		c3.close();
+			if(!ok) System.out.println("incomplete simulation....");
 
-		System.out.println("time taken to complete "+ time);
-		System.out.println("throughtput "+ (double)3*num_ops / (double)time);
-		try {
-			Thread.sleep(1000);
-		} catch (Exception e) {}
+			long time = Util.getCurrTime() - start;
+			for(int i = 0; i < num_threads; i++) {
+				clients[i].close();
+			}
 
+			System.out.println("time taken to complete "+ time);
+			System.out.println("throughtput "+ (double)num_threads*num_ops / (double)time);
+
+			double sum = 0.0;
+			for(int i = 0; i < num_threads; i++) {
+				sum += clients[i].latency;
+			}
+			double avgLatency = sum / num_threads;
+			System.out.println("latency "+ avgLatency);
+		}
 	}
 }

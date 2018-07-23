@@ -10,12 +10,12 @@ public class Server {
 	public List<Integer> ports;
 	public int port;
 
-	public Server(int id) {
+	public Server(int id, String config) {
 		this.me = id;
-		peers = new ArrayList<>();
-		ports = new ArrayList<>();
+		this.peers = new ArrayList<>();
+		this.ports = new ArrayList<>();
 		List<Integer> tmp = new ArrayList<>();
-		Util.readConf(peers, tmp, ports, Util.la_config);
+		Util.readConf(peers, tmp, ports, config);
 		this.port = tmp.get(id);
 	}
 

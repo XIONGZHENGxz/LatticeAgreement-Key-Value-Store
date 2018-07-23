@@ -11,6 +11,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.CyclicBarrier;
+import java.text.DecimalFormat;
 
 import la.common.*;
 
@@ -19,15 +20,15 @@ class CrdtClient extends Client{
 	public ClientListener cl;
 	public int check_count;
 
-	public CrdtClient(List<String> ops, int port, CyclicBarrier gate) {
-		super(ops, Util.la_config, gate);
+	public CrdtClient(List<String> ops, String config, int port, CyclicBarrier gate) {
+		super(ops, config, gate);
 		this.check_count = 0;
 		cl = new ClientListener(this, port);
 		cl.start();
 	}
-		
-	public CrdtClient(List<String> ops) { 
-		super(ops, Util.la_config);
+
+	public CrdtClient(List<String> ops, String config, CyclicBarrier gate) { 
+		super(ops, Util.la_config, gate);
 	}
 
 	public Response executeOp(Op op) {
@@ -93,16 +94,20 @@ class CrdtClient extends Client{
 		int val_len = Integer.parseInt(args[2]);
 		double coef = Double.parseDouble(args[3]);
 		double ratio = Double.parseDouble(args[4]);
-		int num_threads = Util.THREADS;
-		CyclicBarrier gate = new CyclicBarrier(num_threads);
+		String config = args[6];
+
+		int num_threads = Integer.parseInt(args[7]);
+		CyclicBarrier gate = null;
+		DecimalFormat df = new DecimalFormat("#.00"); 
 
 		if(args[5].equals("t")) {
+			gate = new CyclicBarrier(num_threads);
 			List<String>[] ops = new ArrayList[num_threads];
 			CrdtClient[] clients = new CrdtClient[num_threads];
 
 			for(int i = 0; i < num_threads; i++) {
 				ops[i] = Util.ops_generator(num_ops, max, val_len, coef, ratio);
-				clients[i] = new CrdtClient(ops[i], gate);
+				clients[i] = new CrdtClient(ops[i], config, gate);
 			}
 
 			ExecutorService es = Executors.newFixedThreadPool(num_threads);
@@ -121,33 +126,27 @@ class CrdtClient extends Client{
 
 			long time = Util.getCurrTime() - start;
 
-			System.out.println("time taken to complete "+ time);
-			System.out.println("throughtput "+ (double)num_threads*num_ops / (double)time);
+			System.out.println(df.format((double)num_threads*1000*num_ops / (double)time));
 
-		} else if(args[5].equals("l")){
-			List<String> ops = Util.ops_generator(num_ops, max, val_len, coef, ratio);
-			CrdtClient c = new CrdtClient(ops);
-			long start = Util.getCurrTime();
-			c.start();
-			try {
-				c.join();
-			} catch (Exception e) {}
-
-			long time = Util.getCurrTime() - start;
-
-			double avg = time/(double)num_ops; 
-			System.out.println("latency: "+ avg);
+			double sum = 0.0;
+			for(int i = 0; i < num_threads; i++) {
+				sum += clients[i].latency;
+			}
+			double avgLatency = sum / num_threads;
+			System.out.println(df.format(avgLatency));
 		} else if(args[5].equals("c")) {
+			gate = new CyclicBarrier(1);
 			List<String> ops = Util.ops_generator(num_ops, max, val_len, coef, ratio);
-			CrdtClient c = new CrdtClient(ops, Util.c_port);
+			CrdtClient c = new CrdtClient(ops, config, Util.c_port, gate);
+
 			long time = 0;
 			for(String op : c.ops) {
 				time += c.calcTime(op);
 			}
 			double avg = time / (double) num_ops;
-			System.out.println("convergence: "+ avg);
+			System.out.println(df.format(avg));
 		} else System.err.println("invalid option...");
-			
+
 	}
 
 }

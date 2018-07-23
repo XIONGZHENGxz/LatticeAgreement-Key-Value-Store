@@ -37,8 +37,8 @@ public class GlaServer extends Server{
 	public TcpListener l;
 	public Set<Op> log; //executed ops
 
-	public GlaServer(int id, int f) {
-		super(id);
+	public GlaServer(int id, int f, String config) {
+		super(id, config);
 		this.store = new LWWMap(id);
 
 		this.exeInd = -1;
@@ -201,8 +201,9 @@ public class GlaServer extends Server{
 		int id = Integer.parseInt(args[0]);
 		int f = Integer.parseInt(args[1]);	
 		long max = Long.parseLong(args[2]);
+		String config = args[3];
 
-		GlaServer s = new GlaServer(id, f);
+		GlaServer s = new GlaServer(id, f, config);
 		s.init(max);
 	}
 
