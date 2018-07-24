@@ -137,6 +137,7 @@ public class Messager {
 			socket.connect(addr, Util.TIMEOUT);
 			ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
 			out.writeObject(msg);
+			out.flush();
 			ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
 			Object resp = null;
 			long startTime = Util.getCurrTime();

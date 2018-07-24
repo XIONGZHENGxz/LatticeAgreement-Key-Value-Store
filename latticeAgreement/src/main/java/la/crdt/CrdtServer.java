@@ -281,6 +281,7 @@ public class CrdtServer extends Server implements Runnable {
 			this.store.put(key, val);
 			this.update = true;
 			a_count.put(key, 0);
+			this.sendMerge();
 		} finally {
 			lock_put.unlock();
 			lock_up.unlock();
@@ -295,6 +296,7 @@ public class CrdtServer extends Server implements Runnable {
 			this.store.remove(key);
 			this.update = true;
 			r_count.put(key, 0);
+			this.sendMerge();
 		} finally {
 			lock_rm.unlock();
 			lock_up.unlock();

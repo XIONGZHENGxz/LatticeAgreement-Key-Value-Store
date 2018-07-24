@@ -17,6 +17,8 @@ import lsr.paxos.client.Client;
 import lsr.common.Configuration;
 import java.io.ObjectOutputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.ByteArrayInputStream;
+import java.io.DataInputStream;
 
 import la.common.Util;
 
@@ -41,8 +43,8 @@ class JpaxosClient extends Thread{
 			} catch (Exception e) {}
 
 			long start = Util.getCurrTime(); 
-			client.connect();
 			for(String op : this.ops) {
+				client.connect();
 				String[] item = op.split("\\s");
 				MapCommand cmd = null;
 				if(item[0].equals("put")) 
@@ -58,6 +60,10 @@ class JpaxosClient extends Thread{
 					oos.flush();
 					byte[] request = baos.toByteArray();
 					byte[] response = client.execute(request); 
+					ByteArrayInputStream bais = new ByteArrayInputStream(response);
+					DataInputStream dis = new DataInputStream(bais);
+					String s = dis.readUTF();
+					System.out.println("get response for "+ cmd + " " + s); 
 				} catch (Exception e) {
 				} finally {
 					if(baos != null) {
@@ -104,7 +110,7 @@ class JpaxosClient extends Thread{
 		long start = Util.getCurrTime();
 		try {
 			es.shutdown();
-			ok = es.awaitTermination(2, TimeUnit.MINUTES);
+			ok = es.awaitTermination(10, TimeUnit.MINUTES);
 		} catch(Exception e) {}
 
 		if(!ok) System.out.println("incomplete simulation....");
@@ -116,7 +122,7 @@ class JpaxosClient extends Thread{
 		double avgLatency = sum / num_threads;
 		long time = Util.getCurrTime() - start;
 
-		System.out.println(df.format((double) num_threads*num_ops / (double)time));
+		System.out.println(df.format((double) num_threads*1000*num_ops / (double)time));
 		System.out.println(df.format(avgLatency));
 	}
 }

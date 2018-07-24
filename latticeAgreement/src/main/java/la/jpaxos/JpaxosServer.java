@@ -37,7 +37,7 @@ class JpaxosServer extends SimplifiedService {
 
 			if(oldVal == null) oldVal = "";
 
-			store.put(command.getKey(), command.getVal());
+			if(command.getVal() != null) store.put(command.getKey(), command.getVal());
 
 			ByteArrayOutputStream bos = null;
 			DataOutputStream dos = null;
@@ -46,7 +46,7 @@ class JpaxosServer extends SimplifiedService {
 
 				dos = new DataOutputStream(bos);
 
-				dos.writeChars(oldVal);
+				dos.writeUTF(oldVal);
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
