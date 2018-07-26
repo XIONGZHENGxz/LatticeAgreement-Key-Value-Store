@@ -1,4 +1,4 @@
-package la.gla;
+package la.wgla;
 
 import java.lang.Runnable;
 import java.util.Random;
@@ -30,8 +30,10 @@ public class GlaServer extends Server{
 	public ReentrantLock lock_rm;
 	public GLAAlpha gla;
 	public String[] check;
-	public ReentrantLock lock;
-	public Condition learnt;
+	public ReentrantLock rlock;
+	public Condition rcond;
+	public ReentrantLock wlock;
+	public Condition wcond;
 	public int f;
 	public int exeInd; //executed operation index
 	public TcpListener l;
@@ -49,9 +51,12 @@ public class GlaServer extends Server{
 		lock_put = new ReentrantLock();
 		lock_rm = new ReentrantLock();
 		this.check = new String[2];
-		lock = new ReentrantLock();
+		rlock = new ReentrantLock();
 		applock = new ReentrantLock();
-		learnt = lock.newCondition();
+		rcond = rlock.newCondition();
+		wlock = new ReentrantLock();
+		wcond = wlock.newCondition();
+
 		gla = new GLAAlpha(this);
 		l.start();
 	}
@@ -88,7 +93,7 @@ public class GlaServer extends Server{
 		} else {
 			if(req.type.equals("get")) return this.get(req.key);
 			else if(req.type.equals("put") || req.type.equals("remove")) {
-				this.executeUpdate(req);
+				this.write(req);
 				return new Response(true, "");
 			}
 			else System.out.println("invalid operation!!!");
@@ -113,28 +118,45 @@ public class GlaServer extends Server{
 	public void apply(int seq) {
 		try {
 			applock.lock();
-		for(int i = this.exeInd + 1; i <= seq; i++) {
-			for(Op o : this.gla.learntVal(i)) {
-				if(this.log.contains(o)) continue;
-				if(o.type.equals("put")) this.put(o.key, o.val);
-				else if(o.type.equals("remove")) this.remove(o.key);
-				this.log.add(o);
+			for(int i = this.exeInd + 1; i <= seq; i++) {
+				for(Op o : this.gla.learntVal(i)) {
+					if(this.log.contains(o)) continue;
+					if(o.type.equals("put")) this.put(o.key, o.val);
+					else if(o.type.equals("remove")) this.remove(o.key);
+					this.log.add(o);
+				}
 			}
-		}
-		this.exeInd = seq;
+			this.exeInd = seq;
 		} finally {
 			applock.unlock();
 		}
 	}
 
+	public void write(Op op) {
+		try {
+			wlock.lock();
+			this.gla.receiveClient(op); 
+
+			while(true) {
+				wcond.await();
+				if(Util.DEBUG) System.out.println("execution waiting");
+				synchronized (this.gla.buffVal) {
+					if(!this.gla.buffVal.contains(op)) break;
+				}
+			}
+		} catch  (Exception e) {} 
+		finally {
+			wlock.unlock();
+		}
+	}
 
 	public void executeUpdate(Op op)  {
 		try { 
-			lock.lock();
+			rlock.lock();
 			this.gla.receiveClient(op);
 			while(!this.gla.learntValues.contains(op)) {
 				if(Util.DEBUG) System.out.println("execution waiting");
-				learnt.await();
+				rcond.await();
 			} 
 
 			//execute ops 
@@ -143,7 +165,7 @@ public class GlaServer extends Server{
 		} catch (Exception e) {
 			e.printStackTrace();
 		} finally {
-			lock.unlock();
+			rlock.unlock();
 		}
 
 		if(Util.DEBUG) System.out.println("complete execution of " + op);
@@ -152,10 +174,10 @@ public class GlaServer extends Server{
 	public boolean check() {
 		boolean res = false;
 		try {
-			lock.lock();
+			rlock.lock();
 			System.out.println("checking locked...");
 			if(this.check[0] == null) {
-				lock.unlock();
+				rlock.unlock();
 				return false;
 			}
 			System.out.println("inside checking...");
@@ -171,7 +193,7 @@ public class GlaServer extends Server{
 			//System.out.println("checking result "+ res);
 			if(res) this.check = new String[2];
 		} finally {
-			lock.unlock();
+			rlock.unlock();
 		}
 		return res;
 	}
@@ -195,7 +217,7 @@ public class GlaServer extends Server{
 		}
 		return new Response(true, "");
 	}
-	
+
 	public void init(long max) {
 		TimeStamp ts = new TimeStamp(this.me, Util.clock);
 		for(int i = 0; i < max; i++) {

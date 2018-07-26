@@ -60,11 +60,17 @@ public class Acceptor {
 				prop.removeAll(this.accDeltas.get(propId));
 				this.updateDeltas(prop, propId);
 				Request resp = new Request("accept", null, req.seq, this.s.me);
-				Messager.sendPacket(resp, this.peers.get(req.me), this.ports.get(req.me));
+				if(req.me == this.s.me) {
+					this.s.proposer.handleRequest(resp);
+				} else
+					Messager.sendPacket(resp, this.peers.get(req.me), this.ports.get(req.me));
 			} else {
 				Request resp = new Request("reject", this.accDeltas.get(propId), req.seq, this.s.me);
 				prop.removeAll(this.accDeltas.get(propId));
-				Messager.sendPacket(resp, this.peers.get(req.me), this.ports.get(req.me));
+				if(req.me == this.s.me) {
+					this.s.proposer.handleRequest(resp);
+				} else 
+					Messager.sendPacket(resp, this.peers.get(req.me), this.ports.get(req.me));
 				this.updateDeltas(prop, propId);
 			}
 		} finally {

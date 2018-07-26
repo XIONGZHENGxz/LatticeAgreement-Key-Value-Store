@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.Arrays;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.Condition;
+import java.util.concurrent.ConcurrentHashMap;
 
 import la.common.UdpListener;
 import la.common.Op;
@@ -25,14 +26,13 @@ public class Proposer implements Runnable {
 
 	public MglaServer s;
 
-	public int seq; //active sequence number
+	public volatile int seq; //active sequence number
 
 	public Set<Op> buffVal; //values need to be learned
 
 	public volatile boolean active; //proposing or not
 
 	public int ack; //number of accept acks
-	public int count; //number of acks received 
 	public int n; //# peers
 
 	public Set<Op> learntValues; //history of learned values
@@ -49,7 +49,7 @@ public class Proposer implements Runnable {
 		this.propVal = new HashSet<>();
 		this.learntValues = new HashSet<>();
 		this.lock = new ReentrantLock();
-		this.received = new HashSet<>();
+		this.received = ConcurrentHashMap.newKeySet();
 		this.n = this.s.peers.size(); 
 		this.buffVal = new HashSet<>();
 		this.active = false;
@@ -77,22 +77,21 @@ public class Proposer implements Runnable {
 						tmp = new HashSet<>(this.propVal);
 					}
 					if(Util.DEBUG) System.out.println("propose "+ tmp);
-					Request req = new Request("proposal", new HashSet<Op>(tmp), this.seq, this.s.me);
+					Request req = new Request("proposal", tmp, this.seq, this.s.me);
 					this.ack = 0;
-					this.count = 0;
-					this.received = new HashSet<>();
+					this.received = ConcurrentHashMap.newKeySet();
 					this.broadCast(req);
 					int loop = 0;
-					while(this.count < (this.n + 1) / 2) {
+					while(this.received.size() < (this.n + 1) / 2) {
 						if(Util.DEBUG) System.out.println("waiting for ack..." + this.received);
 						loop ++;
-						if(loop % 10 == 0) this.broadCast(req, received);
+						if(loop % 8 == 0) this.broadCast(req, received);
 						try {
-							Thread.sleep(10);
+							Thread.sleep(6);
 						} catch (Exception e) {}
 					}
 
-					if(Util.DEBUG) System.out.println(this.s.me + " got majority acks " + this.count);
+					if(Util.DEBUG) System.out.println(this.s.me + " got majority acks " );
 
 					if(this.ack > this.n / 2) {
 						synchronized (this.learntValues) {
@@ -109,6 +108,11 @@ public class Proposer implements Runnable {
 						break;
 					}  
 					if(Util.DEBUG) System.out.println(this.s.me + " need to refine...");
+					synchronized (this.learntValues) {
+						tmp.removeAll(this.learntValues);
+					}
+					Request serverVal = new Request("serverVal", tmp);
+					this.broadCast(serverVal);
 				}
 
 				try {
@@ -154,8 +158,23 @@ public class Proposer implements Runnable {
 
 	public void receiveClient(Op op) {
 		this.receive(op);
-		Request req = new Request("serverVal", op);
-		this.broadCast(req, new HashSet<Integer>());
+		//Request req = new Request("serverVal", op);
+		//this.broadCast(req, new HashSet<Integer>());
+	}
+
+	public void receive(Set<Op> val) {
+		synchronized (this.learntValues) {
+		for (Op op: val) {
+			if(this.learntValues.contains(op)) continue;
+			synchronized(this.buffVal) {
+				this.buffVal.add(op);
+			}
+		}
+		}
+		if(!this.active) {
+			Thread t = new Thread(this);
+			t.start();
+		}
 	}
 
 	public void receive(Op op) {
@@ -173,10 +192,8 @@ public class Proposer implements Runnable {
 	}
 
 	public void handleRequest(Request req) {
-		synchronized (this.received) {
 			if(req.type.equals("reject")) {
 				if(req.seq == this.seq && !this.received.contains(req.me)) {
-					this.count ++;
 					synchronized (this.propVal) {
 						this.propVal.addAll(req.val);
 					}
@@ -184,8 +201,9 @@ public class Proposer implements Runnable {
 				}
 			} else if(req.type.equals("accept") && !this.received.contains(req.me)) {
 				if(req.seq == this.seq) {
-					this.ack ++;
-					this.count ++;
+					synchronized(this) {
+						this.ack ++;
+					}
 					this.received.add(req.me);
 				}
 			} else if(req.type.equals("learnt")){ 
@@ -207,9 +225,8 @@ public class Proposer implements Runnable {
 					this.s.lock.unlock();
 				}
 			} else if(req.type.equals("serverVal")) {
-				this.receive(req.op);
+				this.receive(req.val);
 			}
-		}
 	}
 
 }

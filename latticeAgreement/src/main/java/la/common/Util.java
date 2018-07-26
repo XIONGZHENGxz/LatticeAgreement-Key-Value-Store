@@ -21,6 +21,8 @@ public class Util {
 	public static int freq = 7;
 	public static double fp = 0.00;
 	public static boolean DEBUG = false;
+	public static boolean DELAY = true; //simulate remote replica 
+	public static int delayReplica = 2; //remote replica 
 	public static int clock = 0;
 	public static String checker_host = "192.168.12.13";
 	public static final String[] types = {"get", "put", "remove"};
@@ -226,6 +228,6 @@ public class Util {
 	}
 
 	public static int decideServer(int n) {
-		return rand.nextInt(n);
+		return rand.nextInt(n - 1);
 	}
 }

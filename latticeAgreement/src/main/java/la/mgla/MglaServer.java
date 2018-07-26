@@ -48,8 +48,8 @@ public class MglaServer extends Server{
 
 	public UdpListener udp;
 
-	public MglaServer(int id, String config) {
-		super(id, config);
+	public MglaServer(int id, String config, boolean fail) {
+		super(id, config, fail);
 		this.store = new LWWMap(id);
 		this.exeInd = -1;
 		this.log = new HashSet<>();
@@ -215,8 +215,9 @@ public class MglaServer extends Server{
 	public static void main(String...args) {
 		int id = Integer.parseInt(args[0]);
 		long max = Long.parseLong(args[1]);
+		boolean fail = args[3].equals("f") ? true : false;
 
-		MglaServer s = new MglaServer(id, args[2]);
+		MglaServer s = new MglaServer(id, args[2], fail);
 		s.init(max);
 	}
 

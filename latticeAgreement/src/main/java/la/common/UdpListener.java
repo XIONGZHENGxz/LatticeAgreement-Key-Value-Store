@@ -32,7 +32,7 @@ public class UdpListener extends Thread{
 	public void run() {
 		while(true) {
 			try {
-				byte[] data = new byte[40480];
+				byte[] data = new byte[102400];
 				DatagramPacket packet  = new DatagramPacket(data, data.length);
 				serverSocket.receive(packet);
 				/*
@@ -44,6 +44,11 @@ public class UdpListener extends Thread{
 					continue;
 				}
 				*/
+				if(Util.DELAY && this.server.me == Util.delayReplica) {
+					try {
+						Thread.sleep(5);
+					} catch (Exception e) {}
+				}
 				Thread t = new Thread(new UdpRequestHandler(this.server, packet));
 				t.start();
 			} catch (Exception e) {

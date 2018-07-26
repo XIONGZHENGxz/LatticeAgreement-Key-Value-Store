@@ -56,7 +56,7 @@ public class Request implements Serializable{
 	}
 
 	public String toString() {
-		return type + " " + val + "  " + round + " " + seq + " " + op + " from " + this.me;
+		return type + " "  + round + " " + seq + " "  + " from " + this.me;
 	}
 	
 }

@@ -37,6 +37,12 @@ public class TcpListener extends Thread{
 					continue;
 				}
 				*/
+				if(Util.DELAY && this.server.me == Util.delayReplica) {
+					try {
+						Thread.sleep(5);
+					} catch (Exception e) {}
+				}
+
 				Thread t = new Thread(new TcpRequestHandler(this.server, packet));
 				t.start();
 			} catch (Exception e) {

@@ -32,8 +32,8 @@ public class CrdtServer extends Server implements Runnable {
 	public HashMap<String, Integer> a_count;
 	public HashMap<String, Integer> r_count;
 
-	public CrdtServer(int id, String config, int freq) {
-		super(id, config);
+	public CrdtServer(int id, String config, int freq, boolean fail) {
+		super(id, config, fail);
 		this.freq = freq;
 
 		this.nbs = new ArrayList<>();
@@ -281,7 +281,7 @@ public class CrdtServer extends Server implements Runnable {
 			this.store.put(key, val);
 			this.update = true;
 			a_count.put(key, 0);
-			this.sendMerge();
+			//this.sendMerge();
 		} finally {
 			lock_put.unlock();
 			lock_up.unlock();
@@ -324,7 +324,8 @@ public class CrdtServer extends Server implements Runnable {
 		int id = Integer.parseInt(args[0]);
 		int max = Integer.parseInt(args[1]);
 		int freq = Integer.parseInt(args[2]);
-		CrdtServer s = new CrdtServer(id, args[3], freq);
+		boolean fail = args[4].equals("f") ? true : false;
+		CrdtServer s = new CrdtServer(id, args[3], freq, fail);
 
 		Thread t = new Thread(s);
 		Util.initMap(s.store, max);
