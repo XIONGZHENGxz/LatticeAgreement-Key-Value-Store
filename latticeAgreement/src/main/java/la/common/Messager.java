@@ -117,7 +117,7 @@ public class Messager {
 			Object resp = null;
 			long startTime = Util.getCurrTime();
 			long currTime = Util.getCurrTime();
-			while(resp == null && currTime-startTime < Util.TIMEOUT) {
+			while(resp == null && currTime - startTime < Util.TIMEOUT) {
 				resp = in.readObject();
 				currTime = Util.getCurrTime();
 			}
@@ -138,18 +138,13 @@ public class Messager {
 			ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
 			out.writeObject(msg);
 			out.flush();
-			ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
+			socket.setSoTimeout(Util.TIMEOUT);
+			InputStream is = socket.getInputStream();
+			ObjectInputStream in = new ObjectInputStream(is);
 			Object resp = null;
-			long startTime = Util.getCurrTime();
-			long currTime = Util.getCurrTime();
-			while(resp == null && currTime - startTime < Util.TIMEOUT) {
-				resp = in.readObject();
-				currTime = Util.getCurrTime();
-			}
+			resp = in.readObject();
 			return resp;
-		} catch (IOException e) {
-			return null;
-		} catch (ClassNotFoundException e) {
+		} catch (Exception e) {
 			return null;
 		}
 	}
@@ -161,6 +156,7 @@ public class Messager {
 			out.writeObject(msg);
 			out.flush();
 		} catch(Exception e){
+			e.printStackTrace();
 		}
 	}
 
@@ -172,7 +168,7 @@ public class Messager {
 			inputStream = new ObjectInputStream(socket.getInputStream());
 			resp = inputStream.readObject();
 		} catch(Exception e){
-			e.printStackTrace();
+			return resp;
 		}
 		return resp;
 	}

@@ -34,6 +34,7 @@ public class UdpRequestHandler implements Runnable {
 				curr = Util.getCurrTime();
 			}
 		}
+
 		if(obj != null)
 		server.handleRequest(obj);
 	}

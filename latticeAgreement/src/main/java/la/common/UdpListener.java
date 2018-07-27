@@ -49,6 +49,7 @@ public class UdpListener extends Thread{
 						Thread.sleep(5);
 					} catch (Exception e) {}
 				}
+
 				Thread t = new Thread(new UdpRequestHandler(this.server, packet));
 				t.start();
 			} catch (Exception e) {

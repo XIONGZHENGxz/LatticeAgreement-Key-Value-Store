@@ -43,9 +43,11 @@ public class Client extends Thread{
 	public Response executeOp (Op op) {
 		while(true) {
 			int s = Util.decideServer(this.servers.size());
+			//System.out.println("executing..."+op + " to "+s);
 			Request req = new Request("client", op);
 			Response resp  = (Response) Messager.sendAndWaitReply(req, this.servers.get(s), this.ports.get(s));
 			if(resp != null && resp.ok) return resp;
+			//System.out.println("fail..."+op + " to "+s);
 		}
 	}
 	
@@ -63,6 +65,7 @@ public class Client extends Thread{
 				ope = new Op(item[0], item[1], item[2]);
 			else ope = new Op(item[0], item[1], "");
 			this.executeOp(ope);
+			//System.out.println("completed executing..."+ope);
 		}
 		long time = Util.getCurrTime() - start;
 		this.latency = time / (double) this.ops.size();
