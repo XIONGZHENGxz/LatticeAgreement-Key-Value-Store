@@ -37,10 +37,12 @@ public class GlaServer extends Server{
 	public Set<Op> log; //executed ops
 	public ReentrantLock applock;
 	public Set<Op> previous;
+	public Random rand;
 
 	public GlaServer(int id, int f, String config, boolean fail) {
 		super(id, config, fail);
 		this.store = new LWWMap(id);
+		this.rand = new Random();
 
 		this.exeInd = -1;
 		this.f = f;
@@ -76,6 +78,7 @@ public class GlaServer extends Server{
 	}
 
 	public Response handleRequest(Object obj) {
+		if(obj == null) return null;
 		Request request = (Request) obj;	
 		Op req = request.op;
 		//System.out.println(this.me + " get request from client: "+ req);
@@ -100,7 +103,6 @@ public class GlaServer extends Server{
 
 	public Response get(String key) {
 		Response res = new Response(false, "");
-		Random rand = new Random();
 		String kid = String.valueOf(rand.nextInt(Integer.MAX_VALUE));
 		Op noop = new Op("noop", kid, "");
 
@@ -117,10 +119,10 @@ public class GlaServer extends Server{
 		for(int i = this.exeInd + 1; i <= seq; i++) {
 			for(Op o : this.gla.learntVal(i)) {
 				Set<Op> prev = this.gla.learntVal(i - 1);
-				if(prev.contains(o) || this.log.contains(o)) continue;
+				if(prev.contains(o)) continue;
 				if(o.type.equals("put")) this.put(o.key, o.val);
 				else if(o.type.equals("remove")) this.remove(o.key);
-				this.log.add(o);
+				//this.log.add(o);
 			}
 		}
 		this.exeInd = seq;
