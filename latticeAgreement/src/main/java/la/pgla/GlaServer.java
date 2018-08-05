@@ -83,12 +83,12 @@ public class GlaServer extends Server{
 		Op req = request.op;
 		//System.out.println(this.me + " get request from client: "+ req);
 
-		if (req.type.equals("checkComp")) {
-			return new Response(true, this.gla.LV);
-		} else if(req.type.equals("down")){
-			this.l.fail = true;
-			this.gla.l.fail = true;
-		} else {
+	//	if (req.type.equals("checkComp")) {
+	//		return new Response(true, this.gla.LV);
+	//	} else if(req.type.equals("down")){
+	//		this.l.fail = true;
+	//		this.gla.l.fail = true;
+	//	} else {
 			if(req.type.equals("get")) {
 				return this.get(req.key);
 			}
@@ -97,7 +97,7 @@ public class GlaServer extends Server{
 				return new Response(true, "");
 			}
 			else System.out.println("invalid operation!!!");
-		}
+	//	}
 		return null;
 	}
 
@@ -127,8 +127,18 @@ public class GlaServer extends Server{
 		}
 		this.exeInd = seq;
 	}
-
-
+/*
+	public void executeUpdate(Op op) {
+		this.gla.receiveClient(op);
+		while(this.gla.buffVal.contains(op)) {
+			try {
+				Thread.sleep(3);
+			} catch (Exception e) {
+			}
+		}
+	}
+	
+	*/
 	public void executeUpdate(Op op)  {
 		try { 
 			lock.lock();

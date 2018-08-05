@@ -103,7 +103,6 @@ public class GLAAlpha extends Server implements Runnable {
 
 	public void start() {
 		Set<Op> val = new HashSet<>();
-		//this.seq = this.catchUp();
 		this.oldAccept = ConcurrentHashMap.newKeySet();
 		for(Op o : this.acceptVal) {
 			oldAccept.add(o);
@@ -142,7 +141,7 @@ public class GLAAlpha extends Server implements Runnable {
 			}
 
 			if(Util.DEBUG) System.out.println(this.me + " got n - f acks");
-
+				
 			/* get any decide message, take join of all decided values */
 			if(this.r < this.s.f && this.decided.containsKey(this.seq)) {
 				if(Util.DEBUG) System.out.println(this.me +" got decide messages");
@@ -154,6 +153,7 @@ public class GLAAlpha extends Server implements Runnable {
 				if(Util.DEBUG) System.out.println(this.me + " reject by majority...");
 				//synchronized (this.acceptVal) {
 				for(Op o : this.acceptVal) val.add(o);
+				if(received.size() == this.n - 1) break;
 				//}
 			}
 		}
@@ -169,7 +169,15 @@ public class GLAAlpha extends Server implements Runnable {
 
 		this.s.apply(this.seq);
 
+	//	this.sleep(2);
+
 		this.wake();
+	}
+
+	public void sleep(int t) {
+		try {
+			Thread.sleep(t);
+		} catch (Exception e) {}
 	}
 
 	public void run() {
@@ -180,6 +188,7 @@ public class GLAAlpha extends Server implements Runnable {
 			}
 
 			while(true) { 
+				this.seq = this.catchUp();
 				this.start();
 				if(this.buffVal.size() == 0) break;
 			}
@@ -255,12 +264,17 @@ public class GLAAlpha extends Server implements Runnable {
 	public void catchUp(int s) {
 		while(this.seq < s) {
 			this.seq ++;
-			this.handleAllProp();
-			this.LV.put(this.seq, new HashSet<Op>());
+			//this.handleAllProp();
+			if(this.decided.containsKey(this.seq)) {
+				this.LV.put(this.seq, this.decided.get(this.seq));
+			} else { 
+				this.LV.put(this.seq, new HashSet<Op>());
+			}
+			this.acceptVal.removeAll(this.LV.get(this.seq - 1));
 		}
+		this.handleAllProp();
 	}
 			
-	/*
 	public int catchUp() {
 		int currSeq = this.seq + 1;
 		while(this.decided.containsKey(currSeq)) {
@@ -273,7 +287,6 @@ public class GLAAlpha extends Server implements Runnable {
 		}
 		return currSeq - 1;
 	}
-	*/
 
 	public void handleAllProp() {
 		for(int i = 0; i < this.n; i++) {
@@ -291,7 +304,7 @@ public class GLAAlpha extends Server implements Runnable {
 			tmpAcc = new HashSet<>(this.acceptVal);
 		}
 
-		if(req.round < this.s.f && req.val.size() >= tmpAcc.size() && req.val.containsAll(tmpAcc)) {
+		if(req.round > 0 && req.round < this.s.f && req.val.size() >= tmpAcc.size() && req.val.containsAll(tmpAcc)) {
 			Request resp = new Request("accept", null, req.round, req.seq, this.me);
 			this.sendUdp(resp, req.me);
 		} else {
@@ -341,10 +354,8 @@ public class GLAAlpha extends Server implements Runnable {
 				this.decided.put(req.seq, req.val);
 		} else if(req.type.equals("reject")) {
 			if(req.seq == this.seq && req.round == this.r) {
-				//synchronized (this.acceptVal) {
 				this.acceptVal.addAll(req.val);
 				if(req.learnt != null) this.oldAccept.addAll(req.learnt); 
-				//	}
 				this.received.add(req.me);
 			}
 		} else if(req.type.equals("accept")) {
