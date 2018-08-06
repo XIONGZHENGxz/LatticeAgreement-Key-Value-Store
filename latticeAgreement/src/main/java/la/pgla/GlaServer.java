@@ -38,11 +38,13 @@ public class GlaServer extends Server{
 	public ReentrantLock applock;
 	public Set<Op> previous;
 	public Random rand;
+	public int randId;
 
 	public GlaServer(int id, int f, String config, boolean fail) {
 		super(id, config, fail);
 		this.store = new LWWMap(id);
 		this.rand = new Random();
+		this.randId = rand.nextInt(Integer.MAX_VALUE);
 
 		this.exeInd = -1;
 		this.f = f;
@@ -104,6 +106,8 @@ public class GlaServer extends Server{
 	public Response get(String key) {
 		Response res = new Response(false, "");
 		String kid = String.valueOf(rand.nextInt(Integer.MAX_VALUE));
+		//String kid = this.me + " " +  this.gla.count;
+		//String kid = String.valueOf(this.randId);
 		Op noop = new Op("noop", kid, "");
 
 		this.executeUpdate(noop);

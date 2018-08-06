@@ -47,7 +47,11 @@ public class GLAAlpha extends Server implements Runnable {
 	public int max_seq;
 	public Request[] maxProp;
 	public Set<Integer> reqs;
+	public int count;
 	public Map<Integer, Boolean> changed;
+	public int startTime; // start waiting time
+	public int endTime; //time when get majority 
+
 
 	public GLAAlpha (GlaServer s) {
 		super(s.me, s.peers, s.port, s.ports);
@@ -60,6 +64,7 @@ public class GLAAlpha extends Server implements Runnable {
 		this.ltLock = new ReentrantLock();
 		tally = 0;
 		this.s = s;
+		this.count = 0;
 		this.reqs = new HashSet<>();
 		this.received = new HashSet<>();
 		this.changed = new HashMap<>();
@@ -169,7 +174,7 @@ public class GLAAlpha extends Server implements Runnable {
 
 		this.s.apply(this.seq);
 
-	//	this.sleep(2);
+		//this.sleep(6);
 
 		this.wake();
 	}
@@ -264,9 +269,9 @@ public class GLAAlpha extends Server implements Runnable {
 	public void catchUp(int s) {
 		while(this.seq < s) {
 			this.seq ++;
-			//this.handleAllProp();
 			if(this.decided.containsKey(this.seq)) {
 				this.LV.put(this.seq, this.decided.get(this.seq));
+				this.buffVal.removeAll(this.decided.get(this.seq));
 			} else { 
 				this.LV.put(this.seq, new HashSet<Op>());
 			}
@@ -280,9 +285,7 @@ public class GLAAlpha extends Server implements Runnable {
 		while(this.decided.containsKey(currSeq)) {
 			Set<Op> tmpVal = this.decided.get(currSeq);
 			this.acceptVal.removeAll(this.LV.get(currSeq - 1));
-			//tmpVal.removeAll(this.LV.get(this.seq - 1));
 			this.buffVal.removeAll(tmpVal);
-			//this.learntValues.addAll(tmpVal);
 			this.LV.put(currSeq ++, tmpVal);
 		}
 		return currSeq - 1;
