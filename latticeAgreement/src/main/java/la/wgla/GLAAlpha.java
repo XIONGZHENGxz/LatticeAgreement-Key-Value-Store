@@ -18,22 +18,21 @@ import la.common.Messager;
 import la.common.Util;
 import la.common.Server;
 
-import la.common.Request;
 import la.common.Response;
 import la.common.Server;
 import la.gla.LearntRequest;
 
 public class GLAAlpha extends Server implements Runnable {
 
-	public volatile int seq; //next available sequence number 
-	public volatile int r; //round number 
-	public Set<Op> buffVal; //values need to be learned
+	public int seq; //next available sequence number 
+	public int r; //round number 
+	public Set<Op> writeBuffVal; //values need to be learned
+	public Set<Op> readBuffVal; 
 	public ConcurrentHashMap<Integer, Set<Op>> LV; //sequence number to learned values mapping
 	public Set<Op> acceptVal; //current accept value
+	public Set<Op> oldAccept; //current accept value
 	public boolean active; //proposing or not
 	public UdpListener l; 
-	public Set<Op> decided; //values in decided messages  
-	public Set<Op> rejected; //values in rejected messages 
 	public volatile int tally; //number of accept acks
 	public int n; //# peers
 	public Set<Op> learntValues; //history of learned values
@@ -43,8 +42,13 @@ public class GLAAlpha extends Server implements Runnable {
 	public int[] learntSeq; //largest learned sequence number for each peer
 	public ReentrantLock lock;
 	public ReentrantLock ltLock;
-	public int[] maxSeq; //store max seq seen for each peer
+	public Map<Integer, Set<Op>> decided;
+	public Map<Integer, Set<Op>> learntReads;
+	public List<int[]> maxSeq; //store max seq seen for each peer
 	public int max_seq;
+	public Request[] maxProp;
+	public Set<Integer> reqs;
+	public Map<Integer, Boolean> changed;
 
 	public GLAAlpha (GlaServer s) {
 		super(s.me, s.peers, s.port, s.ports);
@@ -57,26 +61,37 @@ public class GLAAlpha extends Server implements Runnable {
 		this.ltLock = new ReentrantLock();
 		tally = 0;
 		this.s = s;
+		this.reqs = new HashSet<>();
 		this.received = new HashSet<>();
 		this.minSeq = -1;
 
 		this.n = this.s.peers.size(); 
 
 		this.learntSeq = new int[n];
-		this.maxSeq = new int[n];
+		this.maxSeq = new ArrayList<>();
+		this.maxProp = new Request[this.n];
 		Arrays.fill(learntSeq, -1);
-		Arrays.fill(maxSeq, -1);
+		Arrays.fill(maxProp, new Request("", null, -1, -1, -1));
+		for(int i = 0; i < n; i++) this.maxSeq.add(new int[]{-1, -1});
+
 		this.lock = new ReentrantLock();
 
-		decided = ConcurrentHashMap.newKeySet();
-		buffVal = ConcurrentHashMap.newKeySet();
+		decided = new ConcurrentHashMap<>();
+		learntReads = new ConcurrentHashMap<>();
+		writeBuffVal = ConcurrentHashMap.newKeySet();
+		readBuffVal = ConcurrentHashMap.newKeySet();
 		LV = new ConcurrentHashMap<>();
+		LV.put(-1, new HashSet<Op>());
+		LV.put(0, new HashSet<Op>());
+		learntReads.put(-1, new HashSet<Op>());
+		learntReads.put(0, new HashSet<Op>());
 		acceptVal = ConcurrentHashMap.newKeySet();
 		this.active = false;
 		l = new UdpListener(this, this.ports.get(this.me));
 		l.start();
 		this.minSeq = Integer.MAX_VALUE;
 		this.r = 0;
+		this.oldAccept = ConcurrentHashMap.newKeySet();
 	}
 
 	public void minLearntSeq() {
@@ -90,6 +105,95 @@ public class GLAAlpha extends Server implements Runnable {
 		}
 	}
 
+	public void start() {
+		Set<Op> writes = new HashSet<>();
+		Set<Op> reads = new HashSet<>();
+		this.oldAccept = ConcurrentHashMap.newKeySet();
+		for(Op o : this.acceptVal) {
+			oldAccept.add(o);
+			writes.add(o);
+		}
+		/* add writes to propose, accept only has writes */	
+		for(Op o : this.writeBuffVal) {
+			this.acceptVal.add(o);
+			writes.add(o);
+			if(writes.size() > Util.threshold) break;
+		}
+		/* reads */
+		for(Op o : this.readBuffVal) {
+			reads.add(o);
+		}
+
+		this.seq ++;
+		System.out.println(this.s.me + " start seq: " + this.seq );
+		this.handleAllProp();
+		
+		for(this.r = 0; this.r < this.s.f + 1; this.r ++) {
+			received = new HashSet<>();
+			if(Util.DEBUG) System.out.println(this.me + " propose " + writes.toString());
+			//System.out.println("val size: "+val.size());
+			Request req = new Request("proposal", writes, reads, this.LV.get(this.seq - 1), this.learntReads.get(this.seq - 1), this.r, this.seq, this.me);
+			this.tally = 1;
+			this.broadCast(req);
+			int loop = 0;
+			int want = 0;
+			if(this.r == 0) want = this.n - this.s.f - 1;
+			else want = n / 2;
+
+			while(this.received.size() < want && !this.decided.containsKey(this.seq)) {
+				if(Util.DEBUG) System.out.println(this.me + " waiting for ack received :"+ " "+ this.received + " active +" +this.active + " seq "+ this.seq + " round "+ this.r);
+				loop ++;
+
+				if(loop % 4 == 0) this.broadCast(req, this.received);
+				try {
+					Thread.sleep(3);
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			}
+
+			if(Util.DEBUG) System.out.println(this.me + " got n - f acks");
+				
+			/* get any decide message, take join of all decided values */
+			if(this.r < this.s.f && this.decided.containsKey(this.seq)) {
+				if(Util.DEBUG) System.out.println(this.me +" got decide messages");
+				writes = this.decided.get(this.seq);
+				reads = this.learntReads.get(this.seq);
+				break;
+			} else if(this.r < this.s.f && this.tally > this.n / 2) 
+				break;
+			else { 
+				if(Util.DEBUG) System.out.println(this.me + " reject by majority...");
+				//synchronized (this.acceptVal) {
+				for(Op o : this.acceptVal) writes.add(o);
+				if(received.size() == this.n - 1) break;
+				//}
+			}
+		}
+		
+		this.decided.put(this.seq, writes);
+		if(reads != null) {
+			this.learntReads.put(this.seq, reads);
+			this.readBuffVal.removeAll(reads);
+		}
+		this.LV.put(this.seq , writes);
+
+		if(Util.DEBUG) System.out.println(this.me + " complete seq " + this.seq + " " + writes);
+		this.acceptVal.removeAll(oldAccept);
+
+		this.writeBuffVal.removeAll(writes);
+
+		this.s.apply(this.seq);
+
+		this.wake();
+	}
+
+	public void sleep(int t) {
+		try {
+			Thread.sleep(t);
+		} catch (Exception e) {}
+	}
+
 	public void run() {
 		try {
 			lock.lock();
@@ -97,112 +201,25 @@ public class GLAAlpha extends Server implements Runnable {
 				this.active = true;
 			}
 
-			while(this.buffVal.size() > 0) { 
-
-				synchronized (this.acceptVal) {
-					for(Op o : this.buffVal) {
-						this.acceptVal.add(o);
-					}
-				}
-				this.buffVal = ConcurrentHashMap.newKeySet();
-
-				Set<Op> val = new HashSet<>();
-				this.r = 0;
-				decided = ConcurrentHashMap.newKeySet();
-
-				for(; this.r < this.s.f + 1; this.r ++) {
-					received = new HashSet<>();
-					synchronized (this.acceptVal) {
-						val = new HashSet<>(this.acceptVal);
-					}
-					if(val.size() == 0) break;
-					if(Util.DEBUG) System.out.println(this.me + " propose " + val.toString());
-					Request req = new Request("proposal", val, this.r, this.seq, this.me);
-					this.tally = 1;
-					this.broadCast(req);
-
-					try {
-						this.s.wlock.lock();
-						this.s.wcond.signalAll();
-					} catch (Exception e) {}
-					finally {
-						this.s.wlock.unlock();
-					}
-
-					int loop = 0;
-					int want = 0;
-					if(this.r == 0) want = this.n - this.s.f - 1;
-					else want = this.n / 2;
-
-					while(this.received.size() < want && this.decided.size() == 0) {
-						if(Util.DEBUG) System.out.println(this.me + " waiting for ack received :"+ " "+ this.received + " active +" +this.active + " seq "+ this.seq + " round "+ this.r);
-						loop ++;
-
-						if(loop % 6 == 0) this.broadCast(req, this.received);
-						try {
-							Thread.sleep(6);
-						} catch (Exception e) {}
-					}
-
-					if(Util.DEBUG) System.out.println(this.me + " got n - f acks");
-
-					if(this.decided.size() > 0 && this.r < this.s.f) {
-						if(Util.DEBUG) System.out.println(this.me +" got decide messages");
-						val.removeAll(this.decided);
-						if(val.size() > 0) {
-							this.buffVal.addAll(val);
-							Request serverVal = new Request("serverVal", val);
-							this.broadCast(serverVal);
-						}
-						val = new HashSet<Op>(this.decided);
-						break;
-					} else if(this.tally > this.n / 2) 
-						break;
-					else { 
-						if(Util.DEBUG) System.out.println(this.me + " reject by majority...");
-					}
-				}
-				if(val.size() == 0) continue;
-
-				if(Util.DEBUG) System.out.println(this.me + " complete seq " + this.seq + " " + val);
-				LV.put(this.seq, val);
-				this.seq ++;
-				synchronized (this.acceptVal) {
-					if(this.seq > 1)
-						this.acceptVal.removeAll(this.LV.get(this.seq - 2));
-					learntValues.addAll(val);
-					//this.buffVal.removeAll(val);
-					while(LV.containsKey(this.seq)) {
-						this.acceptVal.removeAll(this.LV.get(this.seq - 1));
-						this.seq ++;
-					}
-				}
-
-				for(int i = 0; i < this.n; i++) {
-					if(i == this.s.me || this.maxSeq[i] >= this.seq - 1) continue;
-					LearntRequest lr = new LearntRequest("learnt", this.seq - 1, this.seq- 2, this.s.me);
-					lr.add(this.seq - 1, val);
-					this.sendUdp(lr, i);
-				}
-
-				this.s.apply(this.seq - 1);
-
-
-				//signal all waiting reads 
-				try {
-					this.s.rlock.lock();
-					this.s.rcond.signalAll();
-				} catch (Exception e) {
-					e.printStackTrace();
-				} finally {
-					this.s.rlock.unlock();
-				}
-
+			while(true) { 
+				this.seq = this.catchUp();
+				this.start();
+				if(this.writeBuffVal.size() == 0 && this.readBuffVal.size() == 0) break;
 			}
 			this.active = false;
 		} finally {
 			this.active = false;
 			lock.unlock();
+		}
+	}
+
+	public void sendLearnt(int seq, Set<Op> val) {
+		Request learntReq = new Request("decided", val, -1, seq, this.me);
+		for(int i = 0; i < this.n; i++) {
+			if(i == this.me) continue;
+			int[] tmp = this.maxSeq.get(i);
+			if(tmp[0] >= this.seq) continue;
+			this.sendUdp(learntReq, i);
 		}
 	}
 
@@ -213,6 +230,17 @@ public class GLAAlpha extends Server implements Runnable {
 		}
 	}
 
+	public void wake() {
+		try {
+			this.s.lock.lock();
+			this.s.learnt.signalAll();
+		} catch (Exception e) {
+			e.printStackTrace();
+		} finally {
+			this.s.lock.unlock();
+		}
+	}
+
 	public void broadCast(Request req) {
 		for(int i = 0; i < this.n; i++) {
 			if(i == this.me) continue;
@@ -220,93 +248,130 @@ public class GLAAlpha extends Server implements Runnable {
 		}
 	}
 
-	public boolean receiveClient(Op op) {
-		return this.receive(op);
-	}
-
-	public void receive(Set<Op> val) {
-		for (Op op: val) {
-			if(this.learntValues.contains(op)) continue;
-			this.buffVal.add(op);
-		}
+	public void receiveWrite(Op op) {
+		this.writeBuffVal.add(op);
 		if(!this.active) {
 			Thread t = new Thread(this);
 			t.start();
 		}
 	}
 
-	public boolean receive(Op op) {
-		if(this.learntValues.contains(op)) return true;
-		//the agree procedure may break while loop, but not check this.active yet.
-		this.buffVal.add(op);
+	public void receiveRead(Op op) {
+		this.readBuffVal.add(op);
 		if(!this.active) {
 			Thread t = new Thread(this);
 			t.start();
 		}
-		return false;
+	}
+
+	public void receiveServer(Set<Op> writes, Set<Op> reads) {
+		this.writeBuffVal.addAll(writes);
+		this.readBuffVal.addAll(reads);
+		if(!this.active) {
+			Thread t = new Thread(this);
+			t.start();
+		}
 	}
 
 	public void sendUdp(Request req, int peer) {
 		Messager.sendPacket(req, this.s.peers.get(peer), this.ports.get(peer));
 	}
+	
+	public void catchUp(int s) {
+		while(this.seq < s) {
+			this.seq ++;
+			if(this.decided.containsKey(this.seq)) {
+				this.LV.put(this.seq, this.decided.get(this.seq));
+				this.acceptVal.removeAll(this.LV.get(this.seq - 1));
+			} 
+		}
+		this.handleAllProp();
+	}
+			
+	public int catchUp() {
+		int currSeq = this.seq + 1;
+		while(this.decided.containsKey(currSeq)) {
+			Set<Op> tmpVal = this.decided.get(currSeq);
+			this.acceptVal.removeAll(this.LV.get(currSeq - 1));
+			this.writeBuffVal.removeAll(tmpVal);
+			this.readBuffVal.removeAll(this.learntReads.get(currSeq));
+			this.LV.put(currSeq ++, tmpVal);
+		}
+		return currSeq - 1;
+	}
+
+	public void handleAllProp() {
+		for(int i = 0; i < this.n; i++) {
+			if(i == this.me) continue;
+			Request tmpReq = this.maxProp[i];
+			if(tmpReq.seq == this.seq) {
+				this.handleProp(tmpReq);
+			}
+		}
+	}
+	
+	/* handle proposal for current sequence */
+	public void handleProp(Request req) {
+		Set<Op> tmpAcc;  
+		synchronized (this.acceptVal) {
+			tmpAcc = new HashSet<>(this.acceptVal);
+		}
+
+		if(req.round > 0 && req.round < this.s.f && req.writes.size() >= tmpAcc.size() && req.writes.containsAll(tmpAcc)) {
+			Request resp = new Request("accept", null, req.round, req.seq, this.me);
+			this.sendUdp(resp, req.me);
+		} else {
+			Request resp = new Request("reject", tmpAcc, req.round, req.seq, this.me);
+			this.sendUdp(resp, req.me);
+		}
+		this.acceptVal.addAll(req.writes);
+	}
 
 	public Response handleRequest(Object obj) {
 		Request req = (Request) obj;
 		if(Util.DEBUG) System.out.println("get request "+req);
-		if(Util.DEBUG) System.out.println("myseq " + this.seq);
 
 		if(req.type.equals("proposal")) {
-			if(this.maxSeq[req.me] > req.seq) return null;
-			else if(this.maxSeq[req.me] < req.seq) {
-				this.maxSeq[req.me] = req.seq;
-			}
-
-			if(this.LV.containsKey(req.seq)) {
-				Request resp = new Request("decided", this.LV.get(req.seq), req.round, req.seq, this.me);
-				this.sendUdp(resp, req.me);
-				return null;
-			}
-
-			while(this.seq < req.seq) {
-				if(this.maxSeq[req.me] > req.seq) return null;
-				if(Util.DEBUG) System.out.println(this.me + " waiting for seq "+ this.seq +" "  +req.seq + " active? "+ this.active);
-				if(!this.active) {
-					Request getLearnt = new Request("getLearnt", null, -1, this.seq, this.me);
-					this.sendUdp(getLearnt, req.me);
-				}
-				try {
-					Thread.sleep(8);
-				} catch(Exception e) {
-				}
-			}
-
 			if(req.seq < this.seq) {
-				if(this.LV.get(req.seq) == null) System.out.println(req.seq + " " + this.seq);
-				Request resp = new Request("decided", this.LV.get(req.seq), req.round, req.seq, this.me);
+				req.writes.removeAll(this.LV.get(req.seq));
+				req.reads.removeAll(this.learntReads.get(req.seq));
+				this.receiveServer(req.writes, req.reads);
+				Request resp = new Request("decided", this.LV.get(req.seq), this.learntReads.get(req.seq), req.round, req.seq, this.me);
 				this.sendUdp(resp, req.me);
-				return null;
 			} 
-			synchronized (this.acceptVal) {
-				if(req.val.containsAll(this.acceptVal)) {
-					Request resp = new Request("accept", null, req.round, req.seq, this.me);
-					this.sendUdp(resp, req.me);
-					this.acceptVal = req.val;
-				} else {
-					Request resp = new Request("reject", this.acceptVal, req.round, req.seq, this.me);
-					this.sendUdp(resp, req.me);
-					this.acceptVal.addAll(req.val);
+			else if(req.seq == this.seq) {
+				this.handleProp(req);
+			} 
+			else {
+				Request tmpProp = this.maxProp[req.me];
+				if(tmpProp.seq < req.seq ||
+						(tmpProp.seq == req.seq && tmpProp.round <= req.round)) 
+					this.maxProp[req.me] = req;
+				else return null;
+				
+				if(!this.decided.containsKey(req.seq - 1)) {
+					this.decided.put(req.seq - 1, req.learntWrites);
+				}
+
+				if(!this.learntReads.containsKey(req.seq - 1)) {
+					this.learntReads.put(req.seq - 1, req.learntReads);
+				}
+				synchronized (this) {
+				if(!this.active) {
+					Thread t = new Thread(this);
+					t.start();
+				}
 				}
 			}
+			return null;
 		} else if(req.type.equals("decided")) {
-			if(req.seq == this.seq) {
-				if(req.val == null) System.out.println("null: " + req.seq);
-				this.decided.addAll(req.val);
-			} 
+			if(!this.decided.containsKey(req.seq)) {
+				this.decided.put(req.seq, req.writes);
+				this.learntReads.put(req.seq, req.reads);
+			}
 		} else if(req.type.equals("reject")) {
 			if(req.seq == this.seq && req.round == this.r) {
-				synchronized (this.acceptVal) {
-					this.acceptVal.addAll(req.val);
-				}
+				this.acceptVal.addAll(req.writes);
 				this.received.add(req.me);
 			}
 		} else if(req.type.equals("accept")) {
@@ -314,60 +379,18 @@ public class GLAAlpha extends Server implements Runnable {
 				this.tally ++;
 				this.received.add(req.me);
 			}
-		} else if(req.type.equals("serverVal")) {
-			this.receive(req.val);
 		} else if(req.type.equals("getLearnt")) {
-			int m = this.maxSeq[req.me] + 1;
-			if(m < this.seq) { 
-				LearntRequest lr = new LearntRequest("learnt", m, m -1, this.me);
-				int i = m;
-				while(i < this.seq) {
-					lr.add(i, this.LV.get(i));
-					if((i - m) % 25 == 0) {
-						this.sendUdp(lr, req.me);
-						lr = new LearntRequest("learnt", i + 1, i, this.me);
-					}
-					i ++;
-				}
-				if(lr.max >= lr.min) this.sendUdp(lr, req.me);
+			int[] tmp = this.maxSeq.get(req.me);
+			if(req.seq >= tmp[0] && this.LV.containsKey(req.seq)) {
+				Request lr = new Request("decided", this.LV.get(req.seq),null, -1, req.seq, this.me);
+				this.sendUdp(lr, req.me);
 			}
-		} else if(req.type.equals("learnt")) {
-			LearntRequest lr = (LearntRequest) req;
-			if(Util.DEBUG) System.out.println(this.me + " received learnt. mySeq "+this.seq + " hisSeq "+ lr.min + " " + lr.max + " active "+ this.active);
-			if(lr.max < this.seq) return null;
-
-			int start = Math.max(lr.min, this.seq);
-			for(int i = start; i <= lr.max; i ++) {
-				Set<Op> tmp = lr.values.get(i);
-				if(!this.LV.containsKey(i)) {
-					this.LV.put(i, tmp);
-					this.learntValues.addAll(tmp);
-					this.buffVal.removeAll(tmp);
-				}
-			}
-
-			synchronized (this) { 
-				if(!this.active) {
-					synchronized (this.acceptVal) {
-						while(this.LV.containsKey(this.seq)) {
-							if(this.seq > 0) this.acceptVal.removeAll(this.LV.get(this.seq - 1));
-							this.seq ++;
-						}
-					}
-				} else {
-					if(lr.values.get(this.seq) != null)
-						this.decided.addAll(lr.values.get(this.seq));
-				}
-			}
-			this.s.apply(this.seq - 1);
-		} else {
-			System.out.println("Invalid request!!!");
 		}
 		return null;
 	}
 
 	public Set<Op> learntVal(int Seq) {
-		if(Seq < 0 || !this.LV.containsKey(Seq)) return new HashSet<>();
+		if(Seq < 0) return new HashSet<>();
 		return this.LV.get(Seq);
 	}
 }

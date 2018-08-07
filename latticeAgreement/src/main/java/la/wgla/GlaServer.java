@@ -29,20 +29,20 @@ public class GlaServer extends Server{
 	public ReentrantLock lock_put;
 	public ReentrantLock lock_rm;
 	public GLAAlpha gla;
-	public String[] check;
-	public ReentrantLock rlock;
-	public Condition rcond;
-	public ReentrantLock wlock;
-	public Condition wcond;
+	public ReentrantLock lock;
+	public Condition learnt;
 	public int f;
 	public int exeInd; //executed operation index
 	public TcpListener l;
 	public Set<Op> log; //executed ops
 	public ReentrantLock applock;
+	public Set<Op> previous;
+	public Random rand;
 
 	public GlaServer(int id, int f, String config, boolean fail) {
 		super(id, config, fail);
 		this.store = new LWWMap(id);
+		this.rand = new Random();
 
 		this.exeInd = -1;
 		this.f = f;
@@ -50,13 +50,9 @@ public class GlaServer extends Server{
 		l = new TcpListener(this, this.port);
 		lock_put = new ReentrantLock();
 		lock_rm = new ReentrantLock();
-		this.check = new String[2];
-		rlock = new ReentrantLock();
+		lock = new ReentrantLock();
 		applock = new ReentrantLock();
-		rcond = rlock.newCondition();
-		wlock = new ReentrantLock();
-		wcond = wlock.newCondition();
-
+		learnt = lock.newCondition();
 		gla = new GLAAlpha(this);
 		l.start();
 	}
@@ -84,37 +80,33 @@ public class GlaServer extends Server{
 	public Response handleRequest(Object obj) {
 		if(obj == null) return null;
 		Request request = (Request) obj;	
-		if(Util.DELAY && request.me == Util.delayReplica) {
-			try {
-				Thread.sleep(5);
-			} catch (Exception e) {}
-		}
-
-		if(Util.DEBUG) System.out.println(this.me + " get request from client " + request);
 		Op req = request.op;
+		//System.out.println(this.me + " get request from client: "+ req);
 
-		if (req.type.equals("checkComp")) {
-			return new Response(true, this.gla.LV);
-		} else if(req.type.equals("down")){
-			this.l.fail = true;
-			this.gla.l.fail = true;
-		} else {
-			if(req.type.equals("get")) return this.get(req.key);
+	//	if (req.type.equals("checkComp")) {
+	//		return new Response(true, this.gla.LV);
+	//	} else if(req.type.equals("down")){
+	//		this.l.fail = true;
+	//		this.gla.l.fail = true;
+	//	} else {
+			if(req.type.equals("get")) {
+				return this.get(req.key);
+			}
 			else if(req.type.equals("put") || req.type.equals("remove")) {
-				this.write(req);
+				this.executeUpdate(req, false);
 				return new Response(true, "");
 			}
 			else System.out.println("invalid operation!!!");
-		}
+	//	}
 		return null;
 	}
 
 	public Response get(String key) {
 		Response res = new Response(false, "");
-		Random rand = new Random();
-		String kid = String.valueOf(rand.nextInt(Integer.MAX_VALUE));
+		String kid = this.me + "" + this.gla.seq;
 		Op noop = new Op("noop", kid, "");
-		this.executeUpdate(noop);
+
+		this.executeUpdate(noop, true);
 		String val = this.store.get(key);
 		if(val != null) {
 			res.ok = true;
@@ -124,83 +116,65 @@ public class GlaServer extends Server{
 	}
 
 	public void apply(int seq) {
-		try {
-			applock.lock();
-			for(int i = this.exeInd + 1; i <= seq; i++) {
-				for(Op o : this.gla.learntVal(i)) {
-					if(this.log.contains(o)) continue;
-					if(o.type.equals("put")) this.put(o.key, o.val);
-					else if(o.type.equals("remove")) this.remove(o.key);
-					this.log.add(o);
+		for(int i = this.exeInd + 1; i <= seq; i++) {
+			/*
+			if(this.gla.learntVal(i) == null) {
+				while(!this.gla.decided.containsKey(i)) {
+					Request req = new Request("getLearnt", null, i , this.me);
+					this.gla.broadCast(req);
+					try {
+						Thread.sleep(5);
+					} catch (Exception e) {}
+				}
+
+				this.gla.LV.put(i, this.gla.decided.get(i));
+			}
+			*/
+			for(Op o : this.gla.learntVal(i)) {
+				Set<Op> prev = this.gla.learntVal(i - 1);
+				if(prev.contains(o)) continue;
+				if(o.type.equals("put")) this.put(o.key, o.val);
+				else if(o.type.equals("remove")) this.remove(o.key);
+				//this.log.add(o);
+			}
+		}
+		this.exeInd = seq;
+	}
+/*
+	public void executeUpdate(Op op) {
+		this.gla.receiveClient(op);
+		while(this.gla.buffVal.contains(op)) {
+			try {
+				Thread.sleep(3);
+			} catch (Exception e) {
+			}
+		}
+	}
+	
+	*/
+
+	public void executeUpdate(Op op, boolean read)  {
+		try { 
+			lock.lock();
+			if(Util.DEBUG) System.out.println(this.me + " waiting for "+op);
+			if(read) {
+				this.gla.receiveRead(op);
+				while(this.gla.readBuffVal.contains(op)) {
+					learnt.await();
+				}
+			} else {
+				this.gla.receiveWrite(op);
+				while(this.gla.writeBuffVal.contains(op)) {
+					learnt.await();
 				}
 			}
-			this.exeInd = seq;
-		} finally {
-			applock.unlock();
-		}
-	}
-
-	public void write(Op op) {
-		try {
-			wlock.lock();
-			if(this.gla.receiveClient(op)) return; 
-			if(Util.DEBUG) System.out.println("waiting for " + op);
-			while(true) {
-				wcond.await();
-				if(!this.gla.buffVal.contains(op)) break;
-			}
-		} catch  (Exception e) {} 
-		finally {
-			wlock.unlock();
-		}
-	}
-
-	public void executeUpdate(Op op)  {
-		try { 
-			rlock.lock();
-			if(this.gla.receiveClient(op)) return;
-			if(Util.DEBUG) System.out.println("waiting for " + op);
-			while(!this.gla.learntValues.contains(op)) {
-				rcond.await();
-			} 
-
-			//execute ops 
-			int currSeq = this.gla.seq - 1;
-			this.apply(currSeq);
 		} catch (Exception e) {
 			e.printStackTrace();
 		} finally {
-			rlock.unlock();
+			lock.unlock();
 		}
 
 		if(Util.DEBUG) System.out.println("complete execution of " + op);
-	}
-
-	public boolean check() {
-		boolean res = false;
-		try {
-			rlock.lock();
-			System.out.println("checking locked...");
-			if(this.check[0] == null) {
-				rlock.unlock();
-				return false;
-			}
-			System.out.println("inside checking...");
-			if(this.check[1].equals("-1")) {
-				String val = this.store.get(check[0]);
-				if(Util.DEBUG) System.out.println("check remove "+ check[0]+ " "+val);
-				res = (val == null);
-			}
-			else {
-				String val = this.store.get(check[0]);
-				res = ( val != null && val.equals(this.check[1]) );
-			}
-			//System.out.println("checking result "+ res);
-			if(res) this.check = new String[2];
-		} finally {
-			rlock.unlock();
-		}
-		return res;
 	}
 
 	public Response put(String key, String val) {
@@ -243,6 +217,7 @@ public class GlaServer extends Server{
 	}
 
 }
+
 
 
 
