@@ -130,6 +130,7 @@ public class GLAAlpha extends Server implements Runnable {
 		
 		for(this.r = 0; this.r < this.s.f + 1; this.r ++) {
 			received = new HashSet<>();
+			boolean writesWaked = false;
 			if(Util.DEBUG) System.out.println(this.me + " propose " + writes.toString());
 			//System.out.println("val size: "+val.size());
 			Request req = new Request("proposal", writes, reads, this.LV.get(this.seq - 1), this.learntReads.get(this.seq - 1), this.r, this.seq, this.me);
@@ -153,6 +154,13 @@ public class GLAAlpha extends Server implements Runnable {
 			}
 
 			if(Util.DEBUG) System.out.println(this.me + " got n - f acks");
+
+			/* wake writes */
+			if(!writesWaked && this.received.size() >= want) {
+				this.writeBuffVal.removeAll(writes);
+				this.wakeWrites();
+				writesWaked = true;
+			}
 				
 			/* get any decide message, take join of all decided values */
 			if(this.r < this.s.f && this.decided.containsKey(this.seq)) {
@@ -185,7 +193,7 @@ public class GLAAlpha extends Server implements Runnable {
 
 		this.s.apply(this.seq);
 
-		this.wake();
+		this.wakeReads();
 	}
 
 	public void sleep(int t) {
@@ -230,14 +238,25 @@ public class GLAAlpha extends Server implements Runnable {
 		}
 	}
 
-	public void wake() {
+	public void wakeWrites() {
 		try {
-			this.s.lock.lock();
-			this.s.learnt.signalAll();
+			this.s.wlock.lock();
+			this.s.wcond.signalAll();
 		} catch (Exception e) {
 			e.printStackTrace();
 		} finally {
-			this.s.lock.unlock();
+			this.s.wlock.unlock();
+		}
+	}
+
+	public void wakeReads() {
+		try {
+			this.s.rlock.lock();
+			this.s.rcond.signalAll();
+		} catch (Exception e) {
+			e.printStackTrace();
+		} finally {
+			this.s.rlock.unlock();
 		}
 	}
 
@@ -368,6 +387,8 @@ public class GLAAlpha extends Server implements Runnable {
 			if(!this.decided.containsKey(req.seq)) {
 				this.decided.put(req.seq, req.writes);
 				this.learntReads.put(req.seq, req.reads);
+				if(req.seq == this.seq && req.round == this.r) 
+					this.received.add(req.me);
 			}
 		} else if(req.type.equals("reject")) {
 			if(req.seq == this.seq && req.round == this.r) {

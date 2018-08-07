@@ -29,8 +29,10 @@ public class GlaServer extends Server{
 	public ReentrantLock lock_put;
 	public ReentrantLock lock_rm;
 	public GLAAlpha gla;
-	public ReentrantLock lock;
-	public Condition learnt;
+	public ReentrantLock wlock;
+	public ReentrantLock rlock;
+	public Condition wcond;
+	public Condition rcond;
 	public int f;
 	public int exeInd; //executed operation index
 	public TcpListener l;
@@ -50,9 +52,11 @@ public class GlaServer extends Server{
 		l = new TcpListener(this, this.port);
 		lock_put = new ReentrantLock();
 		lock_rm = new ReentrantLock();
-		lock = new ReentrantLock();
+		wlock = new ReentrantLock();
+		rlock = new ReentrantLock();
 		applock = new ReentrantLock();
-		learnt = lock.newCondition();
+		wcond = wlock.newCondition();
+		rcond = rlock.newCondition();
 		gla = new GLAAlpha(this);
 		l.start();
 	}
@@ -83,21 +87,21 @@ public class GlaServer extends Server{
 		Op req = request.op;
 		//System.out.println(this.me + " get request from client: "+ req);
 
-	//	if (req.type.equals("checkComp")) {
-	//		return new Response(true, this.gla.LV);
-	//	} else if(req.type.equals("down")){
-	//		this.l.fail = true;
-	//		this.gla.l.fail = true;
-	//	} else {
-			if(req.type.equals("get")) {
-				return this.get(req.key);
-			}
-			else if(req.type.equals("put") || req.type.equals("remove")) {
-				this.executeUpdate(req, false);
-				return new Response(true, "");
-			}
-			else System.out.println("invalid operation!!!");
-	//	}
+		//	if (req.type.equals("checkComp")) {
+		//		return new Response(true, this.gla.LV);
+		//	} else if(req.type.equals("down")){
+		//		this.l.fail = true;
+		//		this.gla.l.fail = true;
+		//	} else {
+		if(req.type.equals("get")) {
+			return this.get(req.key);
+		}
+		else if(req.type.equals("put") || req.type.equals("remove")) {
+			this.executeUpdate(req, false);
+			return new Response(true, "");
+		}
+		else System.out.println("invalid operation!!!");
+		//	}
 		return null;
 	}
 
@@ -118,18 +122,18 @@ public class GlaServer extends Server{
 	public void apply(int seq) {
 		for(int i = this.exeInd + 1; i <= seq; i++) {
 			/*
-			if(this.gla.learntVal(i) == null) {
-				while(!this.gla.decided.containsKey(i)) {
-					Request req = new Request("getLearnt", null, i , this.me);
-					this.gla.broadCast(req);
-					try {
-						Thread.sleep(5);
-					} catch (Exception e) {}
-				}
+			   if(this.gla.learntVal(i) == null) {
+			   while(!this.gla.decided.containsKey(i)) {
+			   Request req = new Request("getLearnt", null, i , this.me);
+			   this.gla.broadCast(req);
+			   try {
+			   Thread.sleep(5);
+			   } catch (Exception e) {}
+			   }
 
-				this.gla.LV.put(i, this.gla.decided.get(i));
-			}
-			*/
+			   this.gla.LV.put(i, this.gla.decided.get(i));
+			   }
+			 */
 			for(Op o : this.gla.learntVal(i)) {
 				Set<Op> prev = this.gla.learntVal(i - 1);
 				if(prev.contains(o)) continue;
@@ -140,41 +144,49 @@ public class GlaServer extends Server{
 		}
 		this.exeInd = seq;
 	}
-/*
-	public void executeUpdate(Op op) {
-		this.gla.receiveClient(op);
-		while(this.gla.buffVal.contains(op)) {
-			try {
-				Thread.sleep(3);
-			} catch (Exception e) {
-			}
+	/*
+	   public void executeUpdate(Op op) {
+	   this.gla.receiveClient(op);
+	   while(this.gla.buffVal.contains(op)) {
+	   try {
+	   Thread.sleep(3);
+	   } catch (Exception e) {
+	   }
+	   }
+	   }
+
+	 */
+
+	public void write(Op op) {
+		try {
+			this.wlock.lock();
+			this.gla.receiveWrite(op);
+			while(this.gla.writeBuffVal.contains(op)) {
+				this.wcond.await();
+			} 
+		} catch (Exception e) {}
+		finally {
+			this.wlock.unlock();
 		}
 	}
-	
-	*/
+
+	public void read(Op op) {
+		try {
+			this.rlock.lock();
+			this.gla.receiveRead(op);
+			while(this.gla.readBuffVal.contains(op)) {
+				this.rcond.await();
+			} 
+		} catch (Exception e) {}
+		finally {
+			this.rlock.unlock();
+		}
+	}
 
 	public void executeUpdate(Op op, boolean read)  {
-		try { 
-			lock.lock();
-			if(Util.DEBUG) System.out.println(this.me + " waiting for "+op);
-			if(read) {
-				this.gla.receiveRead(op);
-				while(this.gla.readBuffVal.contains(op)) {
-					learnt.await();
-				}
-			} else {
-				this.gla.receiveWrite(op);
-				while(this.gla.writeBuffVal.contains(op)) {
-					learnt.await();
-				}
-			}
-		} catch (Exception e) {
-			e.printStackTrace();
-		} finally {
-			lock.unlock();
-		}
-
-		if(Util.DEBUG) System.out.println("complete execution of " + op);
+		if(read) {
+			this.read(op);
+		} else this.write(op);
 	}
 
 	public Response put(String key, String val) {
