@@ -93,7 +93,5 @@ class JpaxosServer extends SimplifiedService {
 
 		replica.start();
 
-		System.in.read();
-		System.exit(0);
 	}
 }

@@ -63,7 +63,7 @@ class JpaxosClient extends Thread{
 					ByteArrayInputStream bais = new ByteArrayInputStream(response);
 					DataInputStream dis = new DataInputStream(bais);
 					String s = dis.readUTF();
-					System.out.println("get response for "+ cmd + " " + s); 
+				//	System.out.println("get response for "+ cmd + " " + s); 
 				} catch (Exception e) {
 				} finally {
 					if(baos != null) {
