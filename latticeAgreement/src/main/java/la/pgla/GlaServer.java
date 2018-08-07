@@ -103,7 +103,7 @@ public class GlaServer extends Server{
 
 	public Response get(String key) {
 		Response res = new Response(false, "");
-		String kid = String.valueOf(rand.nextInt(Integer.MAX_VALUE));
+		String kid = this.me + "" + this.gla.seq;
 		Op noop = new Op("noop", kid, "");
 
 		this.executeUpdate(noop);
@@ -117,6 +117,19 @@ public class GlaServer extends Server{
 
 	public void apply(int seq) {
 		for(int i = this.exeInd + 1; i <= seq; i++) {
+			/*
+			if(this.gla.learntVal(i) == null) {
+				while(!this.gla.decided.containsKey(i)) {
+					Request req = new Request("getLearnt", null, i , this.me);
+					this.gla.broadCast(req);
+					try {
+						Thread.sleep(5);
+					} catch (Exception e) {}
+				}
+
+				this.gla.LV.put(i, this.gla.decided.get(i));
+			}
+			*/
 			for(Op o : this.gla.learntVal(i)) {
 				Set<Op> prev = this.gla.learntVal(i - 1);
 				if(prev.contains(o)) continue;
@@ -200,6 +213,7 @@ public class GlaServer extends Server{
 	}
 
 }
+
 
 
 
