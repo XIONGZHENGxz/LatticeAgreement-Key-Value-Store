@@ -3,6 +3,7 @@ package la.wgla;
 import java.lang.Runnable;
 import java.util.Random;
 import java.util.List;
+import java.util.Queue;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -10,6 +11,8 @@ import java.util.Set;
 import java.util.HashSet;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.Condition;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.net.Socket;
 
 import la.crdt.LWWMap;
 import la.common.TcpListener;
@@ -31,6 +34,8 @@ public class GlaServer extends Server{
 	public GLAAlpha gla;
 	public ReentrantLock wlock;
 	public ReentrantLock rlock;
+	public ReentrantLock reqLock;
+	public Condition reqcond;
 	public Condition wcond;
 	public Condition rcond;
 	public int f;
@@ -40,6 +45,12 @@ public class GlaServer extends Server{
 	public ReentrantLock applock;
 	public Set<Op> previous;
 	public Random rand;
+	public Map<Op, Socket> requests; 
+	public WriteResponder writeResponder;
+	public ReadResponder readResponder;
+	public Queue<Op> writeQueue;
+	public Queue<Op> readQueue;
+	public Map<String, Set<Op>> reads;
 
 	public GlaServer(int id, int f, String config, boolean fail) {
 		super(id, config, fail);
@@ -49,16 +60,24 @@ public class GlaServer extends Server{
 		this.exeInd = -1;
 		this.f = f;
 		this.log = new HashSet<>();
+		this.writeResponder = new WriteResponder(this);
+		this.readResponder = new ReadResponder(this);
+		this.writeQueue = new ConcurrentLinkedQueue<>();
+		this.readQueue = new ConcurrentLinkedQueue<>();
+		this.reads = new HashMap<>();
+		this.requests = new HashMap<>();
 		l = new TcpListener(this, this.port);
 		lock_put = new ReentrantLock();
 		lock_rm = new ReentrantLock();
 		wlock = new ReentrantLock();
 		rlock = new ReentrantLock();
-		applock = new ReentrantLock();
 		wcond = wlock.newCondition();
 		rcond = rlock.newCondition();
+		reqcond = rlock.newCondition();
 		gla = new GLAAlpha(this);
 		l.start();
+		writeResponder.start();
+		readResponder.start();
 	}
 
 	public void close() {
@@ -81,7 +100,7 @@ public class GlaServer extends Server{
 		}
 	}
 
-	public Response handleRequest(Object obj) {
+	public Response handleRequest(Object obj, Socket socket) {
 		if(obj == null) return null;
 		Request request = (Request) obj;	
 		Op req = request.op;
@@ -93,12 +112,16 @@ public class GlaServer extends Server{
 		//		this.l.fail = true;
 		//		this.gla.l.fail = true;
 		//	} else {
+		requests.put(req, socket);
 		if(req.type.equals("get")) {
-			return this.get(req.key);
+			String kid = this.me + "" + this.gla.seq;
+			Op noop = new Op("noop", kid, "");
+			if(!this.reads.containsKey(kid)) reads.put(kid, new HashSet<Op>());
+			reads.get(kid).add(req);
+			this.gla.receiveRead(noop);	
 		}
 		else if(req.type.equals("put") || req.type.equals("remove")) {
-			this.executeUpdate(req, false);
-			return new Response(true, "");
+			this.gla.receiveWrite(req);
 		}
 		else System.out.println("invalid operation!!!");
 		//	}
@@ -107,10 +130,7 @@ public class GlaServer extends Server{
 
 	public Response get(String key) {
 		Response res = new Response(false, "");
-		String kid = this.me + "" + this.gla.seq;
-		Op noop = new Op("noop", kid, "");
 
-		this.executeUpdate(noop, true);
 		String val = this.store.get(key);
 		if(val != null) {
 			res.ok = true;
@@ -129,38 +149,6 @@ public class GlaServer extends Server{
 			}
 		}
 		this.exeInd = seq;
-	}
-
-	public void write(Op op) {
-		try {
-			this.wlock.lock();
-			this.gla.receiveWrite(op);
-			while(this.gla.writeBuffVal.contains(op)) {
-				this.wcond.await();
-			} 
-		} catch (Exception e) {}
-		finally {
-			this.wlock.unlock();
-		}
-	}
-
-	public void read(Op op) {
-		try {
-			this.rlock.lock();
-			this.gla.receiveRead(op);
-			while(this.gla.readBuffVal.contains(op)) {
-				this.rcond.await();
-			} 
-		} catch (Exception e) {}
-		finally {
-			this.rlock.unlock();
-		}
-	}
-
-	public void executeUpdate(Op op, boolean read)  {
-		if(read) {
-			this.read(op);
-		} else this.write(op);
 	}
 
 	public Response put(String key, String val) {
@@ -203,8 +191,6 @@ public class GlaServer extends Server{
 	}
 
 }
-
-
 
 
 

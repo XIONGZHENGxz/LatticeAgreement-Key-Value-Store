@@ -126,12 +126,13 @@ public class GLAAlpha extends Server implements Runnable {
 		}
 
 		this.seq ++;
-		//System.out.println(this.s.me + " start seq: " + this.seq );
+		System.out.println(this.s.me + " start seq: " + this.seq );
 		this.handleAllProp();
 		
+		boolean writesWaked = false;
+
 		for(this.r = 0; this.r < this.s.f + 1; this.r ++) {
 			received = new HashSet<>();
-			boolean writesWaked = false;
 			if(Util.DEBUG) System.out.println(this.me + " propose " + writes.toString());
 			//System.out.println("val size: "+val.size());
 			Request req = null;
@@ -162,7 +163,7 @@ public class GLAAlpha extends Server implements Runnable {
 
 			/* wake writes */
 			if(!writesWaked && this.received.size() >= want) {
-				this.writeBuffVal.removeAll(writes);
+				this.s.writeQueue.addAll(writes);
 				this.wakeWrites();
 				writesWaked = true;
 			}
@@ -185,6 +186,10 @@ public class GLAAlpha extends Server implements Runnable {
 		}
 		
 		this.decided.put(this.seq, writes);
+		if(!writesWaked) {
+			this.s.writeQueue.addAll(writes);
+			this.wakeWrites();
+		}
 		if(reads != null) {
 			this.learntReads.put(this.seq, reads);
 			this.readBuffVal.removeAll(reads);
