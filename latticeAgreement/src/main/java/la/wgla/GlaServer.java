@@ -121,41 +121,15 @@ public class GlaServer extends Server{
 
 	public void apply(int seq) {
 		for(int i = this.exeInd + 1; i <= seq; i++) {
-			/*
-			   if(this.gla.learntVal(i) == null) {
-			   while(!this.gla.decided.containsKey(i)) {
-			   Request req = new Request("getLearnt", null, i , this.me);
-			   this.gla.broadCast(req);
-			   try {
-			   Thread.sleep(5);
-			   } catch (Exception e) {}
-			   }
-
-			   this.gla.LV.put(i, this.gla.decided.get(i));
-			   }
-			 */
 			for(Op o : this.gla.learntVal(i)) {
 				Set<Op> prev = this.gla.learntVal(i - 1);
 				if(prev.contains(o)) continue;
 				if(o.type.equals("put")) this.put(o.key, o.val);
 				else if(o.type.equals("remove")) this.remove(o.key);
-				//this.log.add(o);
 			}
 		}
 		this.exeInd = seq;
 	}
-	/*
-	   public void executeUpdate(Op op) {
-	   this.gla.receiveClient(op);
-	   while(this.gla.buffVal.contains(op)) {
-	   try {
-	   Thread.sleep(3);
-	   } catch (Exception e) {
-	   }
-	   }
-	   }
-
-	 */
 
 	public void write(Op op) {
 		try {

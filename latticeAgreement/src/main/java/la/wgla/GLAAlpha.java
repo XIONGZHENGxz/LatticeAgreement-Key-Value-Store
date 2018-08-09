@@ -49,6 +49,7 @@ public class GLAAlpha extends Server implements Runnable {
 	public Request[] maxProp;
 	public Set<Integer> reqs;
 	public Map<Integer, Boolean> changed;
+	public Map<Integer, Set<Op>> deltas;
 
 	public GLAAlpha (GlaServer s) {
 		super(s.me, s.peers, s.port, s.ports);
@@ -108,9 +109,9 @@ public class GLAAlpha extends Server implements Runnable {
 	public void start() {
 		Set<Op> writes = new HashSet<>();
 		Set<Op> reads = new HashSet<>();
-		this.oldAccept = ConcurrentHashMap.newKeySet();
+		//this.oldAccept = ConcurrentHashMap.newKeySet();
 		for(Op o : this.acceptVal) {
-			oldAccept.add(o);
+			//oldAccept.add(o);
 			writes.add(o);
 		}
 		/* add writes to propose, accept only has writes */	
@@ -125,7 +126,7 @@ public class GLAAlpha extends Server implements Runnable {
 		}
 
 		this.seq ++;
-		System.out.println(this.s.me + " start seq: " + this.seq );
+		//System.out.println(this.s.me + " start seq: " + this.seq );
 		this.handleAllProp();
 		
 		for(this.r = 0; this.r < this.s.f + 1; this.r ++) {
@@ -133,7 +134,11 @@ public class GLAAlpha extends Server implements Runnable {
 			boolean writesWaked = false;
 			if(Util.DEBUG) System.out.println(this.me + " propose " + writes.toString());
 			//System.out.println("val size: "+val.size());
-			Request req = new Request("proposal", writes, reads, this.LV.get(this.seq - 1), this.learntReads.get(this.seq - 1), this.r, this.seq, this.me);
+			Request req = null;
+			if(this.r == 0)
+				req = new Request("proposal", writes, reads, this.LV.get(this.seq - 1), this.learntReads.get(this.seq - 1), this.r, this.seq, this.me);
+			else 	
+				req = new Request("proposal", writes, reads, this.r, this.seq, this.me);
 			this.tally = 1;
 			this.broadCast(req);
 			int loop = 0;
@@ -147,7 +152,7 @@ public class GLAAlpha extends Server implements Runnable {
 
 				if(loop % 4 == 0) this.broadCast(req, this.received);
 				try {
-					Thread.sleep(3);
+					Thread.sleep(1);
 				} catch (Exception e) {
 					e.printStackTrace();
 				}
@@ -187,7 +192,7 @@ public class GLAAlpha extends Server implements Runnable {
 		this.LV.put(this.seq , writes);
 
 		if(Util.DEBUG) System.out.println(this.me + " complete seq " + this.seq + " " + writes);
-		this.acceptVal.removeAll(oldAccept);
+		this.acceptVal.removeAll(this.LV.get(this.seq - 1));
 
 		this.writeBuffVal.removeAll(writes);
 
@@ -331,19 +336,30 @@ public class GLAAlpha extends Server implements Runnable {
 	
 	/* handle proposal for current sequence */
 	public void handleProp(Request req) {
-		Set<Op> tmpAcc;  
-		synchronized (this.acceptVal) {
-			tmpAcc = new HashSet<>(this.acceptVal);
-		}
-
-		if(req.round > 0 && req.round < this.s.f && req.writes.size() >= tmpAcc.size() && req.writes.containsAll(tmpAcc)) {
-			Request resp = new Request("accept", null, req.round, req.seq, this.me);
-			this.sendUdp(resp, req.me);
+		Request resp = null;
+		if(req.round == 0 || req.round >= this.s.f || req.writes.size() < this.acceptVal.size()) {
+			resp = new Request("reject", this.acceptVal, req.round, req.seq, this.me);
 		} else {
-			Request resp = new Request("reject", tmpAcc, req.round, req.seq, this.me);
-			this.sendUdp(resp, req.me);
+			Set<Op> tmpAcc;  
+			synchronized (this.acceptVal) {
+				tmpAcc = new HashSet<>(this.acceptVal);
+			}
+			//tmpAcc.removeAll(req.writes);
+			boolean contain = true;
+			for(Op o : tmpAcc) {
+				if(!req.writes.contains(o)) {
+					contain = false;
+					break;
+				}
+			}
+			
+			if(contain)
+				resp = new Request("accept", null, req.round, req.seq, this.me);
+			else 
+				resp = new Request("reject", tmpAcc, req.round, req.seq, this.me);
 		}
 		this.acceptVal.addAll(req.writes);
+		this.sendUdp(resp, req.me);
 	}
 
 	public Response handleRequest(Object obj) {
@@ -367,13 +383,14 @@ public class GLAAlpha extends Server implements Runnable {
 						(tmpProp.seq == req.seq && tmpProp.round <= req.round)) 
 					this.maxProp[req.me] = req;
 				else return null;
-				
+				if(req.round == 0) {	
 				if(!this.decided.containsKey(req.seq - 1)) {
 					this.decided.put(req.seq - 1, req.learntWrites);
 				}
 
-				if(!this.learntReads.containsKey(req.seq - 1)) {
+				if(!this.learntReads.containsKey(req.seq - 1) && req.learntReads != null) {
 					this.learntReads.put(req.seq - 1, req.learntReads);
+				}
 				}
 				synchronized (this) {
 				if(!this.active) {
