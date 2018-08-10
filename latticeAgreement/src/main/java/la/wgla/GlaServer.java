@@ -37,9 +37,9 @@ public class GlaServer extends Server{
 	public int exeInd; //executed operation index
 	public TcpListener l;
 	public Set<Op> log; //executed ops
-	public ReentrantLock applock;
 	public Set<Op> previous;
 	public Random rand;
+	public ClientRequestHandler crh;
 
 	public GlaServer(int id, int f, String config, boolean fail) {
 		super(id, config, fail);
@@ -54,10 +54,11 @@ public class GlaServer extends Server{
 		lock_rm = new ReentrantLock();
 		wlock = new ReentrantLock();
 		rlock = new ReentrantLock();
-		applock = new ReentrantLock();
 		wcond = wlock.newCondition();
 		rcond = rlock.newCondition();
 		gla = new GLAAlpha(this);
+		this.crh = new ClientRequestHandler(this);
+		crh.start();
 		l.start();
 	}
 
@@ -93,16 +94,18 @@ public class GlaServer extends Server{
 		//		this.l.fail = true;
 		//		this.gla.l.fail = true;
 		//	} else {
+		Response resp = null;
 		if(req.type.equals("get")) {
-			return this.get(req.key);
+			resp = this.get(req.key);
 		}
 		else if(req.type.equals("put") || req.type.equals("remove")) {
 			this.executeUpdate(req, false);
-			return new Response(true, "");
+			resp = new Response(true, "");
 		}
 		else System.out.println("invalid operation!!!");
 		//	}
-		return null;
+		this.crh.counter --;
+		return resp;
 	}
 
 	public Response get(String key) {

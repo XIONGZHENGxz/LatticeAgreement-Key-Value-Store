@@ -46,6 +46,7 @@ public class GLAAlpha extends Server implements Runnable {
 	public Map<Integer, Set<Op>> learntReads;
 	public List<int[]> maxSeq; //store max seq seen for each peer
 	public int max_seq;
+	public PeerRequestHandler prh;
 	public Request[] maxProp;
 	public Set<Integer> reqs;
 	public Map<Integer, Boolean> changed;
@@ -90,6 +91,8 @@ public class GLAAlpha extends Server implements Runnable {
 		this.active = false;
 		l = new UdpListener(this, this.ports.get(this.me));
 		l.start();
+		this.prh = new PeerRequestHandler(this);
+		this.prh.start();
 		this.minSeq = Integer.MAX_VALUE;
 		this.r = 0;
 		this.oldAccept = ConcurrentHashMap.newKeySet();
@@ -126,7 +129,7 @@ public class GLAAlpha extends Server implements Runnable {
 		}
 
 		this.seq ++;
-		//System.out.println(this.s.me + " start seq: " + this.seq );
+		System.out.println(this.s.me + " start seq: " + this.seq );
 		this.handleAllProp();
 		
 		for(this.r = 0; this.r < this.s.f + 1; this.r ++) {
@@ -364,7 +367,7 @@ public class GLAAlpha extends Server implements Runnable {
 
 	public Response handleRequest(Object obj) {
 		Request req = (Request) obj;
-		if(Util.DEBUG) System.out.println("get request "+req);
+		if(Util.DEBUG) System.out.println("get request from peer"+req);
 
 		if(req.type.equals("proposal")) {
 			if(req.seq < this.seq) {
@@ -424,6 +427,7 @@ public class GLAAlpha extends Server implements Runnable {
 				this.sendUdp(lr, req.me);
 			}
 		}
+		this.prh.counter --;
 		return null;
 	}
 
