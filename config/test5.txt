@@ -1,0 +1,8 @@
+#evaluation setup
+#system, number of replicas, number of threads, number of operations for each client thread, reads ratio, distribution, f(optional)
+
+#convergence time
+crdt:2:100:1000:0.5:-1.0:0:6:c
+crdt:3:100:1000:0.5:-1.0:0:6:c
+crdt:4:100:1000:0.5:-1.0:0:6:c
+crdt:5:100:1000:0.5:-1.0:0:6:c
