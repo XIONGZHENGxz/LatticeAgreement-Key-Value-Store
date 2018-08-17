@@ -100,7 +100,7 @@ public class GlaServer extends Server{
 		}
 	}
 
-	public Response handleRequest(Object obj, Socket socket) {
+	public Response handleRequest(Object obj) {
 		if(obj == null) return null;
 		Request request = (Request) obj;	
 		Op req = request.op;
@@ -112,20 +112,54 @@ public class GlaServer extends Server{
 		//		this.l.fail = true;
 		//		this.gla.l.fail = true;
 		//	} else {
-		requests.put(req, socket);
 		if(req.type.equals("get")) {
 			String kid = this.me + "" + this.gla.seq;
 			Op noop = new Op("noop", kid, "");
-			if(!this.reads.containsKey(kid)) reads.put(kid, new HashSet<Op>());
-			reads.get(kid).add(req);
-			this.gla.receiveRead(noop);	
+			//if(!this.reads.containsKey(kid)) reads.put(kid, new HashSet<Op>());
+			//this.gla.receiveRead(noop);	
+			this.executeUpdate(noop, true);
+			return this.get(req.key);
 		}
 		else if(req.type.equals("put") || req.type.equals("remove")) {
-			this.gla.receiveWrite(req);
+			//this.gla.receiveWrite(req);
+			this.executeUpdate(req, false);
+			return new Response(true, "");
 		}
 		else System.out.println("invalid operation!!!");
 		//	}
 		return null;
+	}
+	
+	public void executeUpdate(Op op, boolean read) {
+		if(read) {
+			this.read(op);
+		} else this.write(op);
+	}
+
+	public void read(Op op) {
+		try {
+			this.rlock.lock();
+			this.gla.receiveRead(op);
+			while(this.gla.readBuffVal.contains(op)) {
+				this.rcond.await();
+			}
+		} catch (Exception e) {
+		} finally {
+			this.rlock.unlock();
+		}
+	}
+
+	public void write(Op op) {
+		try {
+			this.wlock.lock();
+			this.gla.receiveWrite(op);
+			while(this.gla.writeBuffVal.contains(op)) {
+				this.wcond.await();
+			}
+		} catch (Exception e) {
+		} finally {
+			this.wlock.unlock();
+		}
 	}
 
 	public Response get(String key) {

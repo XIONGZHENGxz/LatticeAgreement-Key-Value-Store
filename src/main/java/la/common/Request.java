@@ -8,6 +8,9 @@ public class Request implements Serializable{
 
 	public String type;
 	public Set<Op> val;
+	public Set<Op> learnt;
+	public Set<Op> reads;
+	public Set<Op> writes;
 	public int round;
 	public int seq;
 	public Op op;
@@ -43,6 +46,26 @@ public class Request implements Serializable{
 		seq = s;
 		this.me = me;
 	}
+
+	public Request(String type, Set<Op> val, Set<Op> learnt, int r, int s, int me) {
+		this.type = type;
+		this.val = val;
+		this.learnt = learnt;
+		round = r;
+		seq = s;
+		this.me = me;
+	}
+
+	public Request(String type, Set<Op> val, Set<Op> writes, Set<Op> reads, int r, int s, int me) {
+		this.type = type;
+		this.val = val;
+		this.writes = writes;
+		this.reads = reads;
+		round = r;
+		seq = s;
+		this.me = me;
+	}
+
 
 	public Request(String type, Op val) {
 		this.type = type;

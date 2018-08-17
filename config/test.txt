@@ -1,4 +1,4 @@
 #evaluation setup
 #system, number of replicas, number of threads, number of operations for each client thread, reads ratio, distribution, f(optional)
 #convergence time
-gla:4:150:1000:0.5:-1.0:0
+wgla:3:50:1000:0.5:-1.0:1:n:3

@@ -1,4 +1,0 @@
-#evaluation setup
-#system, number of replicas, number of threads, number of operations for each client thread, reads ratio, distribution, f(optional)
-#convergence time
-jpaxos:3:50:100:0.5:-1.0:0:6

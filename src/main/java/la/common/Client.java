@@ -20,13 +20,15 @@ public class Client extends Thread{
 	public List<Integer> ports;
 	public List<String> ops;
 	public CyclicBarrier gate;
+	public int num_prop;
 	public double latency;
 
-	public Client(List<String> ops, String config, CyclicBarrier gate) { 
+	public Client(List<String> ops, String config, CyclicBarrier gate, int num_prop) { 
 		this.servers = new ArrayList<>();
 		this.ports = new ArrayList<>();
 		Util.readConf(servers, ports, config);
 		this.ops = ops;
+		this.num_prop = num_prop;
 		this.gate = gate;
 	}
 
@@ -42,7 +44,7 @@ public class Client extends Thread{
 		
 	public Response executeOp (Op op) {
 		while(true) {
-			int s = Util.decideServer(this.servers.size());
+			int s = Util.decideServer(num_prop);
 			//System.out.println("executing..."+op + " to "+s);
 			Request req = new Request("client", op);
 			Response resp  = (Response) Messager.sendAndWaitReply(req, this.servers.get(s), this.ports.get(s));

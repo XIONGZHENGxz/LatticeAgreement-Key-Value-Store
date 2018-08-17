@@ -19,10 +19,12 @@ public class Util {
 	public static int syncFreq = 5000;
 	public static int loop = 1000;
 	public static int freq = 7;
+	public static int threshold = 50;
+	public static int threadLimit = 50;
 	public static double fp = 0.00;
 	public static boolean DEBUG = false;
 	public static boolean TEST = false;
-	public static boolean DELAY = true; //simulate remote replica 
+	public static boolean DELAY = false; //simulate remote replica 
 	public static int delayReplica = 2; //remote replica 
 	public static int clock = 0;
 	public static String checker_host = "192.168.12.13";

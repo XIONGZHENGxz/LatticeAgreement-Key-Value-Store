@@ -6,17 +6,21 @@ import java.net.Socket;
 import java.net.DatagramSocket;
 import java.net.DatagramPacket;
 import java.util.Random;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ExecutorService;
 
 public class TcpListener extends Thread{
 	public ServerSocket serverSocket;
 	public Server server;
 	public boolean fail;
 	public Random rand;
+	public ExecutorService es;
 	
 	public TcpListener(Server server, int port) {
 		this.server = server;
 		this.fail = false;
 		this.rand = new Random();
+		this.es = Executors.newFixedThreadPool(Util.threadLimit);
 		try {
 			serverSocket = new ServerSocket(port);
 		} catch (Exception e) {
@@ -45,7 +49,7 @@ public class TcpListener extends Thread{
 				}
 
 				Thread t = new Thread(new TcpRequestHandler(this.server, packet));
-				t.start();
+				es.execute(t);
 			} catch (Exception e) {
 				e.printStackTrace();
 			}

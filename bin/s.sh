@@ -1,14 +1,18 @@
 #!/bin/bash
 
 jarFile="target/LA.jar"
-remoteDir="~/xiong/intern/evaluation"
+remoteDir="~/latticeAgreement"
+confJpaxos="config/jpaxos_config.txt"
+config="config/config.txt"
+confMaster="config/masters.txt"
 max=1000
 valLen=3
 configFile="runtime_config.txt"
+username="ubuntu"
+keyFile="xiong-key-pair.pem"
 
 declare -a masters 
-readarray masters < ${2} 
-echo $masters 
+readarray masters < $confMaster 
 
 if [[ ${1} == "-p" ]]
 then 
@@ -22,12 +26,33 @@ then
 	mv $jar "LA.jar"
 fi
 cd "../"
-
-for i in `seq 0 ${#masters[@]}`; do
+num=${#masters[@]}
+num=$((num - 1))
+for i in `seq 0 ${num}`; do
 	master="${masters[$i]}"
 	master=${master%$'\n'}
 	echo $master
-	scp "$configFile" "xiong@${master}:${remoteDir}"
-	scp $jarFile "xiong@${master}:${remoteDir}"
+	if [[ ${2} == "-n" ]]; then
+		ssh -i $keyFile "${username}@${master}" "cd ~/; mkdir -p "${remoteDir}""
+	fi
+	scp -i $keyFile $config "${username}@${master}:${remoteDir}"
+	scp -i $keyFile $confJpaxos "${username}@${master}:${remoteDir}"
+	scp -i $keyFile $confMaster "${username}@${master}:${remoteDir}"
+	scp -i $keyFile "bin/kill.sh" "${username}@${master}:${remoteDir}"
+	if [[ ${1} == "-p" ]]; then
+		scp -i $keyFile $jarFile "${username}@${master}:${remoteDir}"
+	fi
+	if [[ ${2} == "-n" ]];then
+		scp -i $keyFile $keyFile "${username}@${master}:${remoteDir}"
+		ssh -i $keyFile "${username}@${master}" "sudo apt update; sudo apt install openjdk-8-jdk -y"
+	fi
+
 done
 
+master="${masters[${num}]}"
+master=${master%$'\n'}
+scp -i $keyFile "bin/build.sh" "${username}@${master}:${remoteDir}"
+if [[ "${2}" == "-n" ]];then
+	scp -i $keyFile -r "config/" "${username}@${master}:${remoteDir}"
+	scp -i $keyFile -r "bin/" "${username}@${master}:${remoteDir}"
+fi

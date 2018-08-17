@@ -153,7 +153,7 @@ public class GLAAlpha extends Server implements Runnable {
 
 				if(loop % 4 == 0) this.broadCast(req, this.received);
 				try {
-					Thread.sleep(1);
+					Thread.sleep(6);
 				} catch (Exception e) {
 					e.printStackTrace();
 				}

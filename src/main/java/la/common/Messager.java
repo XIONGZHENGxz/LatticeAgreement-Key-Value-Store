@@ -33,6 +33,7 @@ public class Messager {
 			byte[] data = baos.toByteArray();
 			DatagramPacket packet  = new DatagramPacket(data, data.length, InetAddress.getByName(host), port);
 			socket.send(packet);
+			//System.out.println("sent " + msg);
 		} catch(Exception e) {
 			e.printStackTrace();
 		} finally {

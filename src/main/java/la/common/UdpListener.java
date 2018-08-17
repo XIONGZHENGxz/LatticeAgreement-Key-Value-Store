@@ -20,7 +20,7 @@ public class UdpListener extends Thread{
 	public UdpListener(Server server, int port) {
 		this.server = server;
 		this.fail = false;
-		this.es = Executors.newFixedThreadPool(50);
+		this.es = Executors.newFixedThreadPool(Util.threadLimit);
 		this.rand = new Random();
 		try {
 			serverSocket = new DatagramSocket(port);
@@ -51,7 +51,7 @@ public class UdpListener extends Thread{
 				}
 
 				Thread t = new Thread(new UdpRequestHandler(this.server, packet));
-				t.start();
+				es.execute(t);
 			} catch (Exception e) {
 				//e.printStackTrace();
 			}
