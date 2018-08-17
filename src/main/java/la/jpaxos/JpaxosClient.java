@@ -91,6 +91,7 @@ class JpaxosClient extends Thread{
 
 		String configFile = args[5];
 		int num_threads = Integer.parseInt(args[6]);
+		int num_clients = Integer.parseInt(args[7]);
 		CyclicBarrier gate = new CyclicBarrier(num_threads);
 
 		List<String>[] ops = new ArrayList[num_threads];
@@ -122,7 +123,7 @@ class JpaxosClient extends Thread{
 		double avgLatency = sum / num_threads;
 		long time = Util.getCurrTime() - start;
 
-		System.out.println(df.format((double) num_threads*1000*num_ops / (double)time));
+		System.out.println(df.format((double) num_threads * num_clients * num_ops *num_ops / (double)time));
 		System.out.println(df.format(avgLatency));
 	}
 }

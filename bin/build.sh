@@ -4,6 +4,7 @@ setup=${1}
 confJpaxos="config/jpaxos_config.txt"
 confOthers="config/config.txt"
 confMaster="config/masters.txt"
+numClients=2
 
 jarFile="LA.jar"
 remoteDir="~/${username}/latticeAgreement"
@@ -18,6 +19,8 @@ source "$dir/bin/read.sh"
 rm -f "results.csv"
 declare -a masters 
 readarray masters < $confMaster
+numMaster=${#masters[@]}
+num=$((numMaster - 2))
 #read experiments set up
 experiments=`readFileNoComments $setup`
 echo $experiments
@@ -53,14 +56,14 @@ do
 
 	echo -n "${servers[$numReplica]}" >> "$configFile"
 
-	for i in `seq 0 ${numReplica}`; do 
+	for i in `seq 0 ${num}`; do 
 		master="${masters[$i]}"
 		master=${master%$'\n'}
 		ssh -i $keyFile "${username}@${master}" "cd $remoteDir ; ./kill.sh; rm -f $configFile"  
 	done 
 
 
-	for i in `seq 0 ${numReplica}`; do 
+	for i in `seq 0 ${num}`; do 
 		master="${masters[$i]}"
 		master=${master%$'\n'}
 		ssh -i $keyFile "${username}@${master}" 'mkdir -p' $remoteDir
@@ -89,29 +92,43 @@ do
 			echo "invalid target: $target"
 		fi
 	done 
-
-	#start client
+	
+	sleep 1
+	#start clients
+	master="${masters[$num]}"
+	master=${master%$'\n'}
 	if [ $target == "crdt" ]; then 
-		res=`java -cp $jarFile "la.crdt.CrdtClient" $numOps $max $valLen $distribution $readsRatio t $configFile $numThreads $numProp` 
+		ssh -i $keyFile "${username}@${master}" "cd $remoteDir ; java -cp $jarFile la.crdt.CrdtClient $numOps $max $valLen $distribution $readsRatio t $configFile $numThreads $numProp" & 
 	elif [ "$target" == "gla" ] || [ "$target" == "pgla" ] || [ "$target" == "wgla" ]; then 
-		res=`java -cp $jarFile "la.gla.GlaClient" $numOps $max $valLen $distribution $readsRatio $configFile $numThreads $numProp` 
+		ssh -i $keyFile "${username}@${master}" "cd $remoteDir ; java -cp $jarFile la.gla.GlaClient $numOps $max $valLen $distribution $readsRatio $configFile $numThreads $numProp" &
 	elif [ "$target" == "jpaxos" ]; then 
-		res=`java -cp $jarFile "la.jpaxos.JpaxosClient" $numOps $max $valLen $distribution $readsRatio $configFile $numThreads $numProp` 
+		ssh -i $keyFile "${username}@${master}" "cd $remoteDir ; java -cp $jarFile la.jpaxos.JpaxosClient $numOps $max $valLen $distribution $readsRatio $configFile $numThreads $numClients" & 
 	elif [ "$target" == "mgla" ]; then 
-		res=`java -cp $jarFile "la.mgla.MglaClient" $numOps $max $valLen $distribution $readsRatio $configFile $numThreads $numProp` 
+		ssh -i $keyFile "${username}@${master}" "cd $remoteDir ; java -cp $jarFile la.mgla.MglaClient $numOps $max $valLen $distribution $readsRatio $configFile $numThreads $numProp" &
 	else
 		echo "invalid target"
 	fi
 
+	if [ $target == "crdt" ]; then 
+		res=`java -cp $jarFile la.crdt.CrdtClient $numOps $max $valLen $distribution $readsRatio t $configFile $numThreads $numProp $numClients` 
+	elif [ "$target" == "gla" ] || [ "$target" == "pgla" ] || [ "$target" == "wgla" ]; then 
+		res=`java -cp $jarFile la.gla.GlaClient $numOps $max $valLen $distribution $readsRatio $configFile $numThreads $numProp $numClients` 
+	elif [ "$target" == "jpaxos" ]; then 
+		res=`java -cp $jarFile la.jpaxos.JpaxosClient $numOps $max $valLen $distribution $readsRatio $configFile $numThreads $numProp $numClients` 
+	elif [ "$target" == "mgla" ]; then 
+		res=`java -cp $jarFile la.mgla.MglaClient $numOps $max $valLen $distribution $readsRatio $configFile $numThreads $numProp $numClients`
+	else
+		echo "invalid target"
+	fi
+	
 	echo "result: $res"
 	
 	#shutdown servers
-	for i in `seq 0 ${numReplica}`; do 
+	for i in `seq 0 ${num}`; do 
 		master="${masters[$i]}"
 		master=${master%$'\n'}
 		ssh -i $keyFile "${username}@${master}" "cd $remoteDir ; ./kill.sh ; rm -f $configFile"  
 	done 
-
 
 	#parse result
 	arr=()

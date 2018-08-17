@@ -24,8 +24,8 @@ import la.gla.LearntRequest;
 
 public class GLAAlpha extends Server implements Runnable {
 
-	public int seq; //next available sequence number 
-	public int r; //round number 
+	public volatile int seq; //next available sequence number 
+	public volatile int r; //round number 
 	public Set<Op> writeBuffVal; //values need to be learned
 	public Set<Op> readBuffVal; 
 	public ConcurrentHashMap<Integer, Set<Op>> LV; //sequence number to learned values mapping
@@ -41,11 +41,9 @@ public class GLAAlpha extends Server implements Runnable {
 	public int minSeq; 
 	public int[] learntSeq; //largest learned sequence number for each peer
 	public ReentrantLock lock;
-	public ReentrantLock ltLock;
 	public Map<Integer, Set<Op>> decided;
 	public Map<Integer, Set<Op>> learntReads;
 	public List<int[]> maxSeq; //store max seq seen for each peer
-	public int max_seq;
 	public Request[] maxProp;
 	public Set<Integer> reqs;
 	public Map<Integer, Boolean> changed;
@@ -55,11 +53,9 @@ public class GLAAlpha extends Server implements Runnable {
 		super(s.me, s.peers, s.port, s.ports);
 
 		this.seq = 0;
-		this.max_seq = 0;
 		learntValues = ConcurrentHashMap.newKeySet();
 
 		this.lock = new ReentrantLock();
-		this.ltLock = new ReentrantLock();
 		tally = 0;
 		this.s = s;
 		this.reqs = new HashSet<>();
@@ -134,7 +130,6 @@ public class GLAAlpha extends Server implements Runnable {
 		for(this.r = 0; this.r < this.s.f + 1; this.r ++) {
 			received = new HashSet<>();
 			if(Util.DEBUG) System.out.println(this.me + " propose " + writes.toString());
-			//System.out.println("val size: "+val.size());
 			Request req = null;
 			if(this.r == 0)
 				req = new Request("proposal", writes, reads, this.LV.get(this.seq - 1), this.learntReads.get(this.seq - 1), this.r, this.seq, this.me);
@@ -153,7 +148,7 @@ public class GLAAlpha extends Server implements Runnable {
 
 				if(loop % 4 == 0) this.broadCast(req, this.received);
 				try {
-					Thread.sleep(6);
+					Thread.sleep(1);
 				} catch (Exception e) {
 					e.printStackTrace();
 				}
@@ -178,10 +173,8 @@ public class GLAAlpha extends Server implements Runnable {
 				break;
 			else { 
 				if(Util.DEBUG) System.out.println(this.me + " reject by majority...");
-				//synchronized (this.acceptVal) {
 				for(Op o : this.acceptVal) writes.add(o);
 				if(received.size() == this.n - 1) break;
-				//}
 			}
 		}
 		
@@ -215,9 +208,7 @@ public class GLAAlpha extends Server implements Runnable {
 	public void run() {
 		try {
 			lock.lock();
-			synchronized (this) {
-				this.active = true;
-			}
+			this.active = true;
 
 			while(true) { 
 				this.seq = this.catchUp();
@@ -341,6 +332,7 @@ public class GLAAlpha extends Server implements Runnable {
 	
 	/* handle proposal for current sequence */
 	public void handleProp(Request req) {
+		//System.out.println(this.me + " handle proposal....");
 		Request resp = null;
 		if(req.round == 0 || req.round >= this.s.f || req.writes.size() < this.acceptVal.size()) {
 			resp = new Request("reject", this.acceptVal, req.round, req.seq, this.me);
@@ -369,9 +361,10 @@ public class GLAAlpha extends Server implements Runnable {
 
 	public Response handleRequest(Object obj) {
 		Request req = (Request) obj;
-		if(Util.DEBUG) System.out.println("get request "+req);
+		//System.out.println("get request "+req.type);
 
 		if(req.type.equals("proposal")) {
+		//	System.out.println(this.me + " proposal...."+req.seq + " " + this.seq);
 			if(req.seq < this.seq) {
 				req.writes.removeAll(this.LV.get(req.seq));
 				req.reads.removeAll(this.learntReads.get(req.seq));
@@ -397,11 +390,9 @@ public class GLAAlpha extends Server implements Runnable {
 					this.learntReads.put(req.seq - 1, req.learntReads);
 				}
 				}
-				synchronized (this) {
 				if(!this.active) {
 					Thread t = new Thread(this);
 					t.start();
-				}
 				}
 			}
 			return null;

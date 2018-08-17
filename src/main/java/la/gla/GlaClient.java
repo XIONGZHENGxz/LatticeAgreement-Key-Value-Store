@@ -93,6 +93,9 @@ class GlaClient extends Client {
 
 		int num_threads = Integer.parseInt(args[6]);
 		int num_prop = Integer.parseInt(args[7]);
+		int num_clients = 1;
+		if(args.length > 8)
+			num_clients = Integer.parseInt(args[8]);
 		CyclicBarrier gate = new CyclicBarrier(num_threads);
 
 		List<String>[] ops = new ArrayList[num_threads];
@@ -119,8 +122,8 @@ class GlaClient extends Client {
 
 		DecimalFormat df = new DecimalFormat("#.00"); 
 		long time = Util.getCurrTime() - start;
-		double th = (double) num_threads * 1000 * num_ops / (double) time;
-
+		double th = (double) num_threads * num_clients * 1000 * num_ops / (double) time;
+		
 		System.out.println(df.format(th));
 		double sum = 0.0;
 		for(int i = 0; i < num_threads; i++) {

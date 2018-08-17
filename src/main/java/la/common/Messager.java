@@ -23,7 +23,7 @@ public class Messager {
 	}
 	
 	//send msg via datagram socket
-	public static void sendPacket(Object msg, String host, int port) {
+	public synchronized static void sendPacket(Object msg, String host, int port) {
 		DatagramSocket socket = null; 
 		try {
 			socket = new DatagramSocket();
@@ -33,7 +33,7 @@ public class Messager {
 			byte[] data = baos.toByteArray();
 			DatagramPacket packet  = new DatagramPacket(data, data.length, InetAddress.getByName(host), port);
 			socket.send(packet);
-			//System.out.println("sent " + msg);
+			System.out.println("sent ");
 		} catch(Exception e) {
 			e.printStackTrace();
 		} finally {
