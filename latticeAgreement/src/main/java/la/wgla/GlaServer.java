@@ -82,7 +82,15 @@ public class GlaServer extends Server{
 	}
 
 	public Response handleRequest(Object obj) {
+		if(obj == null) return null;
 		Request request = (Request) obj;	
+		if(Util.DELAY && request.me == Util.delayReplica) {
+			try {
+				Thread.sleep(5);
+			} catch (Exception e) {}
+		}
+
+		if(Util.DEBUG) System.out.println(this.me + " get request from client " + request);
 		Op req = request.op;
 
 		if (req.type.equals("checkComp")) {
@@ -135,14 +143,11 @@ public class GlaServer extends Server{
 	public void write(Op op) {
 		try {
 			wlock.lock();
-			this.gla.receiveClient(op); 
-
+			if(this.gla.receiveClient(op)) return; 
+			if(Util.DEBUG) System.out.println("waiting for " + op);
 			while(true) {
 				wcond.await();
-				if(Util.DEBUG) System.out.println("execution waiting");
-				synchronized (this.gla.buffVal) {
-					if(!this.gla.buffVal.contains(op)) break;
-				}
+				if(!this.gla.buffVal.contains(op)) break;
 			}
 		} catch  (Exception e) {} 
 		finally {
@@ -153,9 +158,9 @@ public class GlaServer extends Server{
 	public void executeUpdate(Op op)  {
 		try { 
 			rlock.lock();
-			this.gla.receiveClient(op);
+			if(this.gla.receiveClient(op)) return;
+			if(Util.DEBUG) System.out.println("waiting for " + op);
 			while(!this.gla.learntValues.contains(op)) {
-				if(Util.DEBUG) System.out.println("execution waiting");
 				rcond.await();
 			} 
 

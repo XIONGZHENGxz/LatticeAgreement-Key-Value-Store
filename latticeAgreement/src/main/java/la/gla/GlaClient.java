@@ -18,6 +18,7 @@ import la.common.Util;
 import la.common.Client;
 import la.common.Response;
 import la.common.Op;
+import la.common.Request;
 import la.common.Messager;
 
 class GlaClient extends Client {
@@ -28,37 +29,41 @@ class GlaClient extends Client {
 
 	public boolean checkComp() {
 		Map<Integer, Set<Op>>[] LVs = new Map[this.servers.size()];
-		Op op = new Op("checkComp");
+		Request op = new Request("", new Op("checkComp"));
+		int correct = -1;
 
 		for(int i = 0; i < this.servers.size(); i++) {
-			while(true) {
-				Response resp = (Response) Messager.sendAndWaitReply(op, this.servers.get(i), this.ports.get(i));
-				if(resp != null && resp.ok) {
-					LVs[i] = resp.lv;
-					break;
-				}
+			Response resp = (Response) Messager.sendAndWaitReply(op, this.servers.get(i), this.ports.get(i));
+			if(resp != null && resp.ok) {
+				correct = i;
+				LVs[i] = resp.lv;
 			}
 		}
-		Set<Integer> keys = LVs[0].keySet();
+		Set<Integer> keys = LVs[correct].keySet();
+
 		Map<Integer, Set<Op>>[] values = new Map[this.servers.size()];
 		for(int i = 0; i < this.servers.size(); i++) {
 			values[i] = new HashMap<>();
 		}
 
-		for(int seq = 0 ; LVs[0].containsKey(seq); seq ++) {
+		for(int seq = 0 ; LVs[correct].containsKey(seq); seq ++) {
 			for(int i = 0; i < this.servers.size(); i++) {
+				if(LVs[i] == null) continue;
 				if(seq == 0) values[i].put(seq, LVs[i].get(seq));
 				else {
 					Set<Op> tmp = new HashSet<>(values[i].get(seq - 1));
+					if(LVs[i].get(seq) != null)
 					tmp.addAll(LVs[i].get(seq));
 					values[i].put(seq, tmp);
 				}
 			}
 		}
 
-		for(int seq = 0; LVs[0].containsKey(seq); seq ++) {
+		for(int seq = 0; LVs[correct].containsKey(seq); seq ++) {
 			for(int i = 0; i < this.servers.size(); i++) {
+				if(LVs[i] == null) continue;
 				for(int j = i + 1; j < this.servers.size(); j++) {
+					if(LVs[j] == null) continue;
 					if(!comparable(values[i].get(seq), values[j].get(seq))) {
 						System.out.println(i + " and " + j + " incomparable "+ seq+ " \n" + LVs[i].get(seq)+ "\n" + LVs[j].get(seq));
 						Set<Op> tmp1 = new HashSet<>(values[i].get(seq));
@@ -108,7 +113,7 @@ class GlaClient extends Client {
 			es.shutdown();
 			ok = es.awaitTermination(10, TimeUnit.MINUTES);
 		} catch(Exception e) {}
-	
+
 		if(!ok) System.out.println("incomplete simulation....");
 
 		DecimalFormat df = new DecimalFormat("#.00"); 
@@ -122,5 +127,14 @@ class GlaClient extends Client {
 		}
 		double avgLatency = sum / num_threads;
 		System.out.println(df.format(avgLatency));
+
+		if(Util.TEST) {
+			System.out.println("checking...");
+			try {
+				Thread.sleep(1000);
+			} catch (Exception e) {}
+			boolean comp = clients[0].checkComp();
+			System.out.println("comparable: "+ comp);
+		}
 	}
 }

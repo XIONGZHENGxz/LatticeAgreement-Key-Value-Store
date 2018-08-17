@@ -21,6 +21,7 @@ public class Util {
 	public static int freq = 7;
 	public static double fp = 0.00;
 	public static boolean DEBUG = false;
+	public static boolean TEST = false;
 	public static boolean DELAY = true; //simulate remote replica 
 	public static int delayReplica = 2; //remote replica 
 	public static int clock = 0;
@@ -30,7 +31,7 @@ public class Util {
 	public static String la_config = "config/la_config.txt";
 	public static String cass_config = "config/cassandra_config.txt";
 	public static Random rand = new Random();
-	public static final int TIMEOUT = 20;
+	public static final int TIMEOUT = 1000;
 	public static final int THREADS = 100;
 	public static final int fail = 10000;
 
@@ -228,6 +229,7 @@ public class Util {
 	}
 
 	public static int decideServer(int n) {
-		return rand.nextInt(n - 1);
+		if(Util.DELAY) return rand.nextInt(n - 1);
+		else return rand.nextInt(n);
 	}
 }

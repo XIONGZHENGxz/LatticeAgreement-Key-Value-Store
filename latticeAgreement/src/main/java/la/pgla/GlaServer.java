@@ -1,4 +1,4 @@
-package la.gla;
+package la.pgla;
 
 import java.lang.Runnable;
 import java.util.Random;
@@ -36,11 +36,16 @@ public class GlaServer extends Server{
 	public TcpListener l;
 	public Set<Op> log; //executed ops
 	public ReentrantLock applock;
+	public Set<Op> previous;
+	public Random rand;
+	public int randId;
 
 	public GlaServer(int id, int f, String config, boolean fail) {
 		super(id, config, fail);
 		this.store = new LWWMap(id);
-		
+		this.rand = new Random();
+		this.randId = rand.nextInt(Integer.MAX_VALUE);
+
 		this.exeInd = -1;
 		this.f = f;
 		this.log = new HashSet<>();
@@ -75,16 +80,17 @@ public class GlaServer extends Server{
 	}
 
 	public Response handleRequest(Object obj) {
+		if(obj == null) return null;
 		Request request = (Request) obj;	
 		Op req = request.op;
 		//System.out.println(this.me + " get request from client: "+ req);
 
-		if (req.type.equals("checkComp")) {
-			return new Response(true, this.gla.LV);
-		} else if(req.type.equals("down")){
-			this.l.fail = true;
-			this.gla.l.fail = true;
-		} else {
+	//	if (req.type.equals("checkComp")) {
+	//		return new Response(true, this.gla.LV);
+	//	} else if(req.type.equals("down")){
+	//		this.l.fail = true;
+	//		this.gla.l.fail = true;
+	//	} else {
 			if(req.type.equals("get")) {
 				return this.get(req.key);
 			}
@@ -93,16 +99,17 @@ public class GlaServer extends Server{
 				return new Response(true, "");
 			}
 			else System.out.println("invalid operation!!!");
-		}
+	//	}
 		return null;
 	}
 
 	public Response get(String key) {
 		Response res = new Response(false, "");
-		Random rand = new Random();
 		String kid = String.valueOf(rand.nextInt(Integer.MAX_VALUE));
+		//String kid = this.me + " " +  this.gla.count;
+		//String kid = String.valueOf(this.randId);
 		Op noop = new Op("noop", kid, "");
-	
+
 		this.executeUpdate(noop);
 		String val = this.store.get(key);
 		if(val != null) {
@@ -113,35 +120,41 @@ public class GlaServer extends Server{
 	}
 
 	public void apply(int seq) {
-		try {
-			applock.lock();
-			for(int i = this.exeInd + 1; i <= seq; i++) {
-				for(Op o : this.gla.learntVal(i)) {
-					if(this.log.contains(o)) continue;
-					if(o.type.equals("put")) this.put(o.key, o.val);
-					else if(o.type.equals("remove")) this.remove(o.key);
-					this.log.add(o);
-				}
+		for(int i = this.exeInd + 1; i <= seq; i++) {
+			for(Op o : this.gla.learntVal(i)) {
+				Set<Op> prev = this.gla.learntVal(i - 1);
+				if(prev.contains(o)) continue;
+				if(o.type.equals("put")) this.put(o.key, o.val);
+				else if(o.type.equals("remove")) this.remove(o.key);
+				//this.log.add(o);
 			}
-			this.exeInd = seq;
-		} finally {
-			applock.unlock();
+		}
+		this.exeInd = seq;
+	}
+/*
+	public void executeUpdate(Op op) {
+		this.gla.receiveClient(op);
+		while(this.gla.buffVal.contains(op)) {
+			try {
+				Thread.sleep(3);
+			} catch (Exception e) {
+			}
 		}
 	}
-
-
+	
+	*/
 	public void executeUpdate(Op op)  {
 		try { 
 			lock.lock();
-			this.gla.receiveClient(op);
+			if(this.gla.receiveClient(op)) return;
 			if(Util.DEBUG) System.out.println(this.me + " waiting for "+op);
-			while(!this.gla.learntValues.contains(op)) {
+			while(this.gla.buffVal.contains(op)) {
 				learnt.await();
 			} 
 
 			//execute ops 
-			int currSeq = this.gla.seq - 1;
-			this.apply(currSeq);
+			//int currSeq = this.gla.seq - 1;
+			//this.apply(currSeq);
 		} catch (Exception e) {
 			e.printStackTrace();
 		} finally {
