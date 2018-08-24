@@ -4,7 +4,7 @@ setup=${1}
 confJpaxos="config/jpaxos_config.txt"
 confOthers="config/config.txt"
 confMaster="config/masters.txt"
-numClients=2
+numClients=1
 
 jarFile="LA.jar"
 remoteDir="~/${username}/latticeAgreement"
@@ -21,6 +21,8 @@ declare -a masters
 readarray masters < $confMaster
 numMaster=${#masters[@]}
 num=$((numMaster - 2))
+clientStart=$((numMaster - numClients))
+clientEnd=$((numMaster - 2))
 #read experiments set up
 experiments=`readFileNoComments $setup`
 echo $experiments
@@ -63,7 +65,7 @@ do
 	done 
 
 
-	for i in `seq 0 ${num}`; do 
+	for i in `seq 0 ${clientEnd}`; do 
 		master="${masters[$i]}"
 		master=${master%$'\n'}
 		ssh -i $keyFile "${username}@${master}" 'mkdir -p' $remoteDir
@@ -95,7 +97,9 @@ do
 	
 	sleep 1
 	#start clients
-	master="${masters[$num]}"
+	clientId=0
+	for i in `seq $clientStart $clientEnd`; do
+	master="${masters[$i]}"
 	master=${master%$'\n'}
 	if [ $target == "crdt" ]; then 
 		ssh -i $keyFile "${username}@${master}" "cd $remoteDir ; java -cp $jarFile la.crdt.CrdtClient $numOps $max $valLen $distribution $readsRatio t $configFile $numThreads $numProp" & 
@@ -108,6 +112,8 @@ do
 	else
 		echo "invalid target"
 	fi
+	clientId=$((clientId + 1))
+	done
 
 	if [ $target == "crdt" ]; then 
 		res=`java -cp $jarFile la.crdt.CrdtClient $numOps $max $valLen $distribution $readsRatio t $configFile $numThreads $numProp $numClients` 
