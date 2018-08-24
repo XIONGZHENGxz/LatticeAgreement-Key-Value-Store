@@ -23,10 +23,11 @@ import la.common.Messager;
 
 class GlaClient extends Client {
 
-	public GlaClient(List<String> ops, String config, CyclicBarrier gate, int num_prop) { 
-		super(ops, config, gate, num_prop);
+	public GlaClient(List<String> ops, String config, CyclicBarrier gate, int num_prop, int id) { 
+		super(ops, config, gate, num_prop,id);
 	}
-
+	
+	/*
 	public boolean checkComp() {
 		Map<Integer, Set<Op>>[] LVs = new Map[this.servers.size()];
 		Request op = new Request("", new Op("checkComp"));
@@ -78,6 +79,7 @@ class GlaClient extends Client {
 		}
 		return true;
 	}
+	*/
 
 	public boolean comparable(Set<Op> s1, Set<Op> s2) {
 		return s1.containsAll(s2) || s2.containsAll(s1);
@@ -93,9 +95,7 @@ class GlaClient extends Client {
 
 		int num_threads = Integer.parseInt(args[6]);
 		int num_prop = Integer.parseInt(args[7]);
-		int num_clients = 1;
-		if(args.length > 8)
-			num_clients = Integer.parseInt(args[8]);
+		int id = Integer.parseInt(args[8]);
 		CyclicBarrier gate = new CyclicBarrier(num_threads);
 
 		List<String>[] ops = new ArrayList[num_threads];
@@ -103,7 +103,7 @@ class GlaClient extends Client {
 
 		for(int i = 0; i < num_threads; i++) {
 			ops[i] = Util.ops_generator(num_ops, max, val_len, coef, ratio);
-			clients[i] = new GlaClient(ops[i], config, gate, num_prop);
+			clients[i] = new GlaClient(ops[i], config, gate, num_prop, id * num_threads + i);
 		}
 
 		ExecutorService es = Executors.newFixedThreadPool(num_threads);
@@ -122,8 +122,8 @@ class GlaClient extends Client {
 
 		DecimalFormat df = new DecimalFormat("#.00"); 
 		long time = Util.getCurrTime() - start;
-		double th = (double) num_threads * num_clients * 1000 * num_ops / (double) time;
-		
+		double th = (double) num_threads * 1000 * num_ops / (double) time;
+
 		System.out.println(df.format(th));
 		double sum = 0.0;
 		for(int i = 0; i < num_threads; i++) {
@@ -137,8 +137,8 @@ class GlaClient extends Client {
 			try {
 				Thread.sleep(1000);
 			} catch (Exception e) {}
-			boolean comp = clients[0].checkComp();
-			System.out.println("comparable: "+ comp);
+			//boolean comp = clients[0].checkComp();
+			//System.out.println("comparable: "+ comp);
 		}
 	}
 }

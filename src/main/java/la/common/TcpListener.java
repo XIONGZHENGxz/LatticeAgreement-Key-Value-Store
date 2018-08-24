@@ -48,8 +48,6 @@ public class TcpListener extends Thread{
 					} catch (Exception e) {}
 				}
 
-				Thread t = new Thread(new TcpRequestHandler(this.server, packet));
-				es.execute(t);
 			} catch (Exception e) {
 				e.printStackTrace();
 			}

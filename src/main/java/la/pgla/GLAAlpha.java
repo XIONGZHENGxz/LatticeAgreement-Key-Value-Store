@@ -21,7 +21,6 @@ import la.common.Server;
 import la.common.Request;
 import la.common.Response;
 import la.common.Server;
-import la.gla.LearntRequest;
 
 public class GLAAlpha extends Server implements Runnable {
 

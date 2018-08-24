@@ -11,8 +11,14 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.CyclicBarrier;
-
+import java.net.Socket;
+import java.io.DataOutputStream;
+import java.io.DataInputStream;
+import java.nio.ByteBuffer;
+import java.nio.channels.SocketChannel;
 import la.common.Util;
+
+import java.net.InetSocketAddress;
 
 public class Client extends Thread{
 
@@ -22,14 +28,21 @@ public class Client extends Thread{
 	public CyclicBarrier gate;
 	public int num_prop;
 	public double latency;
+	public SocketChannel socket;
+	public int id;
+	public DataOutputStream output;
+	public DataInputStream input;
+	public Random rand;
 
-	public Client(List<String> ops, String config, CyclicBarrier gate, int num_prop) { 
+	public Client(List<String> ops, String config, CyclicBarrier gate, int num_prop, int id) { 
 		this.servers = new ArrayList<>();
 		this.ports = new ArrayList<>();
 		Util.readConf(servers, ports, config);
 		this.ops = ops;
 		this.num_prop = num_prop;
 		this.gate = gate;
+		this.id = id;
+		this.rand = new Random();
 	}
 
 	public Response handleRequest(Request req) {
@@ -41,35 +54,78 @@ public class Client extends Thread{
 		int s = Util.decideServer(this.servers.size());
 		Messager.sendMsg(req, this.servers.get(s), this.ports.get(s));
 	}
-		
-	public Response executeOp (Op op) {
-		while(true) {
-			int s = Util.decideServer(num_prop);
-			//System.out.println("executing..."+op + " to "+s);
-			Request req = new Request("client", op);
-			Response resp  = (Response) Messager.sendAndWaitReply(req, this.servers.get(s), this.ports.get(s));
-			if(resp != null && resp.ok) return resp;
-			//System.out.println("fail..."+op + " to "+s);
-		}
-	}
-	
-	@Override
-	public void run() {
-		try {
-			this.gate.await();
-		} catch (Exception e) {}
 
-		long start = Util.getCurrTime();
-		for(String op : this.ops) {
-			String[] item = op.split("\\s");
-			Op ope = null;
-			if(item[0].equals("put")) 
-				ope = new Op(item[0], item[1], item[2]);
-			else ope = new Op(item[0], item[1], "");
-			this.executeOp(ope);
-			//System.out.println("completed executing..."+ope);
+	public boolean execute (Op op) {
+		ByteBuffer buffer = op.toBytes();
+		buffer.flip();
+		try {
+			socket.write(buffer);
+			ByteBuffer bb = ByteBuffer.allocate(48);
+			long start = Util.getCurrTime();
+			int bytes = socket.read(bb);
+			while(bytes != -1 && bytes == 0 && Util.getCurrTime() - start < Util.TIMEOUT) {
+				bytes = socket.read(bb);
+			}
+			if(bytes < 1) return false;
+
+			bb.flip();
+			Result res = Result.values()[bb.getInt()];
+			System.out.println("get input ..." + res);
+			if(res == Result.TRUE) return true;
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
-		long time = Util.getCurrTime() - start;
-		this.latency = time / (double) this.ops.size();
+		return false;
 	}
+
+	public boolean connect(int replica) {
+		try {
+			InetSocketAddress addr = new InetSocketAddress(this.servers.get(replica), this.ports.get(replica));
+			socket = SocketChannel.open(addr);
+			socket.configureBlocking(false);
+			//output = new DataOutputStream(socket.getOutputStream());
+			//input = new DataInputStream(socket.getInputStream());
+		} catch (Exception e) {
+			return false;
+		}
+		return true;
+	}
+
+	public boolean reconnect() {
+		int replica = rand.nextInt(this.servers.size());
+		return this.connect(replica);
+	}
+
+	@Override
+		public void run() {
+			try {
+				this.gate.await();
+			} catch (Exception e) {}
+
+			int replica = this.id % this.num_prop;
+			long start = Util.getCurrTime();
+			boolean connected = this.connect(replica);
+
+			while(!connected) {
+				connected = this.reconnect();
+			}
+
+			for(String op : this.ops) {
+				String[] item = op.split("\\s");
+				Op ope = null;
+				if(item[0].equals("put")) 
+					ope = new Op(Type.PUT, item[1], item[2]);
+				else ope = new Op(Type.GET, item[1], "");
+
+				while(!this.execute(ope)) {
+					this.reconnect();
+					break;
+				}
+			}
+			long time = Util.getCurrTime() - start;
+			this.latency = time / (double) this.ops.size();
+			try {
+				socket.close();
+			} catch (Exception e) {}
+		}
 }

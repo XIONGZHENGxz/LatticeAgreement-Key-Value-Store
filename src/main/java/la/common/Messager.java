@@ -7,6 +7,13 @@ import java.net.DatagramSocket;
 import java.net.DatagramPacket;
 import java.net.InetSocketAddress;
 
+import java.nio.channels.SocketChannel;
+import java.nio.channels.SelectionKey;
+import java.nio.ByteBuffer;
+
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+
 public class Messager {
 	public boolean waitReply;
 	public Object msg;	
@@ -21,7 +28,7 @@ public class Messager {
 		this.port = port;
 		this.resp = null;
 	}
-	
+
 	//send msg via datagram socket
 	public synchronized static void sendPacket(Object msg, String host, int port) {
 		DatagramSocket socket = null; 
@@ -44,7 +51,7 @@ public class Messager {
 			}
 		}
 	}
-		
+
 
 	//send msg
 	public static boolean sendMsg(Object msg, String host, int port) {
@@ -70,21 +77,21 @@ public class Messager {
 
 		return true;
 	}
-/*	
-	public void run() {
+	/*	
+		public void run() {
 		if(waitReply) {
-			while(true) {
-				this.resp = sendAndWaitReply(msg, this.host, this.port);
-				if(this.resp != null) break;
-				try{
-					Thread.sleep(10);
-				} catch(Exception e) {
-					e.printStackTrace();
-				}
-			}
+		while(true) {
+		this.resp = sendAndWaitReply(msg, this.host, this.port);
+		if(this.resp != null) break;
+		try{
+		Thread.sleep(10);
+		} catch(Exception e) {
+		e.printStackTrace();
 		}
-	}
-*/
+		}
+		}
+		}
+	 */
 	//send and wait for response
 	public String sendAndWaitReply(String msg,String host,int port) {
 		try {
@@ -150,6 +157,20 @@ public class Messager {
 		}
 	}
 
+	public  static  void sendMsg(Response msg, SelectionKey key) {
+		SocketChannel socket = (SocketChannel) key.channel();
+		ByteBuffer bb = msg.writeToBuffer();
+		//System.out.println("bytebuffer... " + bb);
+		bb.flip();
+		try {
+			int bytesWrite = socket.write(bb);
+			//System.out.println("write success....");
+			if(bytesWrite < 1) System.out.println("write failed...");
+		} catch(Exception e){
+			e.printStackTrace();
+		}
+	}
+
 	public  static  void sendMsg(Object msg, Socket socket) {
 		ObjectOutputStream out;
 		try {
@@ -161,17 +182,35 @@ public class Messager {
 		}
 	}
 
-	//if flag == 0, read object, else read string
-	public static Object getMsg(Socket socket) {
-		Object resp = null;
-		ObjectInputStream inputStream;
+	public static Op getMsg(SelectionKey key) {
+		SocketChannel socket = (SocketChannel) key.channel();
+		Op op = new Op();
+		ByteBuffer buffer = ByteBuffer.allocate(48);
+		int byteRead = -1;
 		try {
-			inputStream = new ObjectInputStream(socket.getInputStream());
-			resp = inputStream.readObject();
-		} catch(Exception e){
-			return resp;
+			byteRead = socket.read(buffer);
+			//System.out.println("received buffer..." + buffer + " " + byteRead);
+			buffer.flip();
+			if(byteRead == 0) return null; 
+			if(byteRead < 0) {
+				try {
+					key.attach(null);
+					key.cancel();
+					key.channel().close();
+				} catch (Exception e) {}
+				return null;
+			}
+			op.type = Type.values()[buffer.getInt()];
+			byte[] keyBytes = new byte[buffer.getInt()];
+			buffer.get(keyBytes, 0, keyBytes.length);
+			byte[] valBytes = new byte[buffer.getInt()];
+			buffer.get(valBytes, 0, valBytes.length);
+			op.key = new String(keyBytes, "UTF-8");
+			op.val = new String(valBytes, "UTF-8");
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
-		return resp;
+		return op;
 	}
 
 	public  void sendMsg(String msg, String host, int port) {
@@ -206,4 +245,17 @@ public class Messager {
 		}
 		return resp;
 	}
+
+	public static Object getMsg(Socket socket) {
+		Object resp = null;
+		ObjectInputStream inputStream;
+		try {
+			inputStream = new ObjectInputStream(socket.getInputStream());
+			resp = inputStream.readObject();
+		} catch(Exception e){
+			return resp;
+		}
+		return resp;
+	}
+
 }

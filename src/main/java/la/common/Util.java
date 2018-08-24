@@ -10,6 +10,8 @@ import java.util.HashSet;
 import java.util.ArrayList;
 import java.io.BufferedReader;
 import java.io.FileReader;
+import java.io.DataOutputStream;
+import java.io.ByteArrayOutputStream;
 
 import la.crdt.*;
 
@@ -20,9 +22,11 @@ public class Util {
 	public static int loop = 1000;
 	public static int freq = 7;
 	public static int threshold = 50;
-	public static int threadLimit = 50;
+	public static int requestSize = 20;
+	public static int threadLimit = 5;
+	public static int processors = 50;
 	public static double fp = 0.00;
-	public static boolean DEBUG = false;
+	public static boolean DEBUG = true;
 	public static boolean TEST = false;
 	public static boolean DELAY = false; //simulate remote replica 
 	public static int delayReplica = 2; //remote replica 
@@ -34,6 +38,7 @@ public class Util {
 	public static String cass_config = "config/cassandra_config.txt";
 	public static Random rand = new Random();
 	public static final int TIMEOUT = 1000;
+	public static final int session_timeout = 1000 * 1000;
 	public static final int THREADS = 100;
 	public static final int fail = 10000;
 
@@ -210,7 +215,7 @@ public class Util {
 		}
 	}
 
-			
+
 	public static HashMap<String, String> initMap(long max) {
 		HashMap<String, String> map = new HashMap<>();
 		for(int i = 0; i < max; i++) {
@@ -234,4 +239,16 @@ public class Util {
 		if(Util.DELAY) return rand.nextInt(n - 1);
 		else return rand.nextInt(n);
 	}
+
+	public static byte[] toByteArray(String str) {
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		DataOutputStream dos = new DataOutputStream(baos);
+		try {
+			dos.writeBytes(str);
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+		return baos.toByteArray();
+	}
+
 }

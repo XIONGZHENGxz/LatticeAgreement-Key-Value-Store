@@ -16,16 +16,18 @@ import java.text.DecimalFormat;
 import la.common.Client;
 import la.common.Util;
 import la.common.Client;
+import la.common.Result;
 import la.common.Response;
 import la.common.Op;
 import la.common.Messager;
 
 class MglaClient extends Client {
 
-	public MglaClient(List<String> ops, String config, CyclicBarrier gate, int num_prop) { 
-		super(ops, config, gate, num_prop);
+	public MglaClient(List<String> ops, String config, CyclicBarrier gate, int num_prop, int id) { 
+		super(ops, config, gate, num_prop, id);
 	}
-
+	
+	/*
 	public boolean checkComp() {
 		Map<Integer, Set<Op>>[] LVs = new Map[this.servers.size()];
 		Op op = new Op("checkComp");
@@ -33,8 +35,7 @@ class MglaClient extends Client {
 		for(int i = 0; i < this.servers.size(); i++) {
 			while(true) {
 				Response resp = (Response) Messager.sendAndWaitReply(op, this.servers.get(i), this.ports.get(i));
-				if(resp != null && resp.ok) {
-					LVs[i] = resp.lv;
+				if(resp != null && resp.ok == Result.TRUE) {
 					break;
 				}
 			}
@@ -73,7 +74,7 @@ class MglaClient extends Client {
 		}
 		return true;
 	}
-
+	*/
 	public boolean comparable(Set<Op> s1, Set<Op> s2) {
 		return s1.containsAll(s2) || s2.containsAll(s1);
 	}
@@ -88,6 +89,7 @@ class MglaClient extends Client {
 
 		int num_threads = Integer.parseInt(args[6]);
 		int num_prop = Integer.parseInt(args[7]);
+		int id = Integer.parseInt(args[8]);
 		CyclicBarrier gate = new CyclicBarrier(num_threads);
 
 		List<String>[] ops = new ArrayList[num_threads];
@@ -95,7 +97,7 @@ class MglaClient extends Client {
 
 		for(int i = 0; i < num_threads; i++) {
 			ops[i] = Util.ops_generator(num_ops, max, val_len, coef, ratio);
-			clients[i] = new MglaClient(ops[i], config, gate, num_prop);
+			clients[i] = new MglaClient(ops[i], config, gate, num_prop, id * num_threads + i);
 		}
 
 		ExecutorService es = Executors.newFixedThreadPool(num_threads);

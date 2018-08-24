@@ -15,13 +15,16 @@ import la.crdt.LWWMap;
 import la.common.TcpListener;
 import la.crdt.LWWMap;
 import la.common.Op;
+import la.common.Type;
 import la.common.Server;
 import la.common.Response;
+import la.common.Result;
 import la.common.Request;
 import la.common.Util;
 import la.crdt.TimeStamp;
 import la.crdt.Entry;
 
+import la.network.*;
 
 public class GlaServer extends Server{
 
@@ -84,17 +87,17 @@ public class GlaServer extends Server{
 		//System.out.println(this.me + " get request from client: "+ req);
 
 	//	if (req.type.equals("checkComp")) {
-	//		return new Response(true, this.gla.LV);
+	//		return new Response(Result.TRUE, this.gla.LV);
 	//	} else if(req.type.equals("down")){
-	//		this.l.fail = true;
-	//		this.gla.l.fail = true;
+	//		this.l.fail = Result.TRUE;
+	//		this.gla.l.fail = Result.TRUE;
 	//	} else {
 			if(req.type.equals("get")) {
 				return this.get(req.key);
 			}
 			else if(req.type.equals("put") || req.type.equals("remove")) {
 				this.executeUpdate(req);
-				return new Response(true, "");
+				return new Response(Result.TRUE, "");
 			}
 			else System.out.println("invalid operation!!!");
 	//	}
@@ -102,14 +105,14 @@ public class GlaServer extends Server{
 	}
 
 	public Response get(String key) {
-		Response res = new Response(false, "");
+		Response res = new Response(Result.FALSE, "");
 		String kid = this.me + "" + this.gla.seq;
-		Op noop = new Op("noop", kid, "");
+		Op noop = new Op(Type.GET, kid, "");
 
 		this.executeUpdate(noop);
 		String val = this.store.get(key);
 		if(val != null) {
-			res.ok = true;
+			res.ok = Result.TRUE;
 			res.val = val;
 		}
 		return res;
@@ -133,8 +136,8 @@ public class GlaServer extends Server{
 			for(Op o : this.gla.learntVal(i)) {
 				Set<Op> prev = this.gla.learntVal(i - 1);
 				if(prev.contains(o)) continue;
-				if(o.type.equals("put")) this.put(o.key, o.val);
-				else if(o.type.equals("remove")) this.remove(o.key);
+				if(o.type == Type.PUT) this.put(o.key, o.val);
+				else if(o.type == Type.REMOVE) this.remove(o.key);
 				//this.log.add(o);
 			}
 		}
@@ -180,7 +183,7 @@ public class GlaServer extends Server{
 		} finally {
 			lock_put.unlock();
 		}
-		return new Response(true, "");
+		return new Response(Result.TRUE, "");
 	}
 
 	public Response remove(String key) {
@@ -190,7 +193,7 @@ public class GlaServer extends Server{
 		} finally {
 			lock_rm.unlock();
 		}
-		return new Response(true, "");
+		return new Response(Result.TRUE, "");
 	}
 
 	public void init(long max) {

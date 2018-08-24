@@ -1,22 +1,46 @@
 package la.common;
+
 import java.io.Serializable;
 import java.util.Map;
 import java.util.Set;
 
+import java.nio.ByteBuffer;
+import java.io.DataInputStream;
+
 public class Response implements Serializable {
 	private final static long serialVersionUID = 11L;	
-	public boolean ok;
+	public Result ok;
 	public String val;
+	
+	public Response () {}
 
-	public Map<Integer, Set<Op>> lv;
-
-	public Response(boolean ok, String val) {
-		this.ok  = ok;
+	public Response (Result ok, String val) {
+		this.ok = ok;
 		this.val = val;
 	}
 
-	public Response(boolean ok, Map<Integer, Set<Op>> lv) {
-		this.ok  = ok;
-		this.lv = lv;
+	public Response(DataInputStream input) {
+		try {
+			System.out.println("reading input stream...");
+			ok = Result.values()[input.readInt()];
+			System.out.println("read type...");
+			byte[] tmp = new byte[input.readInt()];
+			input.readFully(tmp);
+			val = new String(tmp, "UTF-8");
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
+	public ByteBuffer writeToBuffer() {
+		byte[] tmp = Util.toByteArray(val);
+		ByteBuffer bb = ByteBuffer.allocate(4 + tmp.length);
+		bb.putInt(ok.ordinal());
+		bb.put(tmp);
+		return bb;
+	}
+
+	public String toString() {
+		return this.ok + " " + this.val;
 	}
 }
