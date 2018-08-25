@@ -186,6 +186,8 @@ public class GLAAlpha extends Server implements Runnable {
 		if(reads != null) {
 			this.learntReads.put(this.seq, reads);
 			this.readBuffVal.removeAll(reads);
+		} else {
+			this.learntReads.put(this.seq, new HashSet<Op>());
 		}
 		this.LV.put(this.seq , writes);
 
@@ -217,7 +219,6 @@ public class GLAAlpha extends Server implements Runnable {
 			}
 			this.active = false;
 		} finally {
-			this.active = false;
 			lock.unlock();
 		}
 	}

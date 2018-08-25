@@ -53,7 +53,7 @@ class GlaClient extends Client {
 				else {
 					Set<Op> tmp = new HashSet<>(values[i].get(seq - 1));
 					if(LVs[i].get(seq) != null)
-					tmp.addAll(LVs[i].get(seq));
+						tmp.addAll(LVs[i].get(seq));
 					values[i].put(seq, tmp);
 				}
 			}
@@ -102,7 +102,7 @@ class GlaClient extends Client {
 		GlaClient[] clients = new GlaClient[num_threads];
 
 		for(int i = 0; i < num_threads; i++) {
-			ops[i] = Util.ops_generator(num_ops, max, val_len, coef, ratio);
+			ops[i] = Util.ops_generator(1000*num_ops, max, val_len, coef, ratio);
 			clients[i] = new GlaClient(ops[i], config, gate, num_prop);
 		}
 
@@ -120,18 +120,23 @@ class GlaClient extends Client {
 
 		if(!ok) System.out.println("incomplete simulation....");
 
-		DecimalFormat df = new DecimalFormat("#.00"); 
-		long time = Util.getCurrTime() - start;
-		double th = (double) num_threads * num_clients * 1000 * num_ops / (double) time;
-		
-		System.out.println(df.format(th));
-		double sum = 0.0;
-		for(int i = 0; i < num_threads; i++) {
-			sum += clients[i].latency;
-		}
-		double avgLatency = sum / num_threads;
-		System.out.println(df.format(avgLatency));
+		if(args.length > 8) {
+			try {
+				Thread.sleep(5);
+			} catch (Exception e) {}
 
+			DecimalFormat df = new DecimalFormat("#.00"); 
+			double sum = 0.0;
+			long sum_count = 0;
+			for(int i = 0; i < num_threads; i++) {
+				sum += clients[i].latency;
+				sum_count += clients[i].count;
+			}
+			double th = (double) num_clients * 1000 * sum_count / Util.testTime;
+			System.out.println(df.format(th));
+			double avgLatency = sum / num_threads;
+			System.out.println(df.format(avgLatency));
+		}
 		if(Util.TEST) {
 			System.out.println("checking...");
 			try {

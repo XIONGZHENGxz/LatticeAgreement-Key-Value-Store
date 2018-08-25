@@ -26,14 +26,46 @@ class JpaxosClient extends Thread{
 	public List<String> ops;
 	public Client client;
 	public CyclicBarrier gate;
+	public long count;
 	public double latency;
 
 	public JpaxosClient(List<String> ops, String file, CyclicBarrier gate) { 
 		this.ops = ops;
 		this.gate = gate;
+		this.count = 0;
 		try {
 			client = new Client(new Configuration(file));
 		} catch (Exception e) {}
+	}
+
+	public void execute(MapCommand cmd) {
+		ObjectOutputStream oos = null;
+		ByteArrayOutputStream baos = null;
+
+		try {
+			baos = new ByteArrayOutputStream();
+			oos = new ObjectOutputStream(baos);
+			oos.writeObject(cmd);
+			oos.flush();
+			byte[] request = baos.toByteArray();
+			byte[] response = client.execute(request); 
+			ByteArrayInputStream bais = new ByteArrayInputStream(response);
+			DataInputStream dis = new DataInputStream(bais);
+			String s = dis.readUTF();
+			//	System.out.println("get response for "+ cmd + " " + s); 
+		} catch (Exception e) {
+		} finally {
+			if(baos != null) {
+				try {
+					baos.close();
+				} catch (Exception e) {}
+			} 
+			if(oos != null) {
+				try {
+					oos.close();
+				} catch (Exception e) {}
+			}
+		}
 	}
 
 	@Override
@@ -42,44 +74,38 @@ class JpaxosClient extends Thread{
 				this.gate.await();
 			} catch (Exception e) {}
 
-			long start = Util.getCurrTime(); 
-			for(String op : this.ops) {
-				client.connect();
+			long tmp = Util.getCurrTime(); 
+			int i = 0;
+			/*
+			while(Util.getCurrTime() - tmp < Util.cutTime) {
+				String op = this.ops.get(i++);
 				String[] item = op.split("\\s");
 				MapCommand cmd = null;
 				if(item[0].equals("put")) 
 					cmd = new MapCommand(item[1], item[2]);
 				else cmd = new MapCommand(item[1], "");
-				ObjectOutputStream oos = null;
-				ByteArrayOutputStream baos = null;
-
-				try {
-					baos = new ByteArrayOutputStream();
-					oos = new ObjectOutputStream(baos);
-					oos.writeObject(cmd);
-					oos.flush();
-					byte[] request = baos.toByteArray();
-					byte[] response = client.execute(request); 
-					ByteArrayInputStream bais = new ByteArrayInputStream(response);
-					DataInputStream dis = new DataInputStream(bais);
-					String s = dis.readUTF();
-				//	System.out.println("get response for "+ cmd + " " + s); 
-				} catch (Exception e) {
-				} finally {
-					if(baos != null) {
-						try {
-							baos.close();
-						} catch (Exception e) {}
-					} 
-					if(oos != null) {
-						try {
-							oos.close();
-						} catch (Exception e) {}
-					}
-				}
+				this.execute(cmd);
 			}
-			long time = Util.getCurrTime() - start;
-			this.latency = time / (double) this.ops.size();
+			*/
+			try {
+				Thread.sleep(Util.cutTime);
+			} catch (Exception e) {
+			}
+
+			long start = Util.getCurrTime();
+			client.connect();
+			while(Util.getCurrTime() - start < Util.testTime) {
+				String op = this.ops.get(i++);
+				String[] item = op.split("\\s");
+				MapCommand cmd = null;
+				if(item[0].equals("put")) 
+					cmd = new MapCommand(item[1], item[2]);
+				else cmd = new MapCommand(item[1], "");
+				this.execute(cmd);
+				count ++;
+			}
+				
+			this.latency = Util.testTime / (double) this.count;
 		}
 
 	public static void main(String...args) {
@@ -98,7 +124,7 @@ class JpaxosClient extends Thread{
 		JpaxosClient[] clients = new JpaxosClient[num_threads];
 
 		for(int i = 0; i < num_threads; i++) {
-			ops[i] = Util.ops_generator(num_ops, max, val_len, coef, ratio);
+			ops[i] = Util.ops_generator(1000 * num_ops, max, val_len, coef, ratio);
 			clients[i] = new JpaxosClient(ops[i], configFile, gate);
 		}
 
@@ -117,13 +143,14 @@ class JpaxosClient extends Thread{
 		if(!ok) System.out.println("incomplete simulation....");
 		DecimalFormat df = new DecimalFormat("#.00"); 
 		double sum = 0.0;
+		long  sum_count = 0;
 		for(int i = 0; i < num_threads; i++) {
 			sum += clients[i].latency;
+			sum_count += clients[i].count;
 		}
 		double avgLatency = sum / num_threads;
-		long time = Util.getCurrTime() - start;
-
-		System.out.println(df.format((double) num_threads * num_clients * num_ops *num_ops / (double)time));
+		double th = (double) sum_count * num_clients * 1000 / Util.testTime;
+		System.out.println(df.format(th));
 		System.out.println(df.format(avgLatency));
 	}
 }

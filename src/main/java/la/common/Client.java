@@ -13,6 +13,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.CyclicBarrier;
 
 import la.common.Util;
+import java.io.ObjectOutputStream;
+import java.io.ObjectInputStream;
+import java.net.InetSocketAddress;
+import java.net.Socket;
 
 public class Client extends Thread{
 
@@ -22,6 +26,10 @@ public class Client extends Thread{
 	public CyclicBarrier gate;
 	public int num_prop;
 	public double latency;
+	public long count = 0;
+	public Socket socket;
+	public ObjectOutputStream out;
+	public ObjectInputStream in;
 
 	public Client(List<String> ops, String config, CyclicBarrier gate, int num_prop) { 
 		this.servers = new ArrayList<>();
@@ -36,40 +44,81 @@ public class Client extends Thread{
 		return null;
 	}
 
+	public void connect() {
+		this.clean();
+		while(true) {
+			int replica = Util.decideServer(num_prop);
+			socket = new Socket();
+			try {
+				socket.connect(new InetSocketAddress(this.servers.get(replica), this.ports.get(replica)), Util.TIMEOUT);
+				socket.setSoTimeout(Util.TIMEOUT);
+				out = new ObjectOutputStream(socket.getOutputStream());
+				in = new ObjectInputStream(socket.getInputStream());
+				break;
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
+	}
+
+	public void clean() {
+		if(socket != null) {
+			try {
+				socket.close();
+			} catch (Exception e) {}
+		}
+	}
+
 	public void shutDown() {
 		Request req = new Request("down");
 		int s = Util.decideServer(this.servers.size());
 		Messager.sendMsg(req, this.servers.get(s), this.ports.get(s));
 	}
-		
-	public Response executeOp (Op op) {
-		while(true) {
-			int s = Util.decideServer(num_prop);
-			//System.out.println("executing..."+op + " to "+s);
-			Request req = new Request("client", op);
-			Response resp  = (Response) Messager.sendAndWaitReply(req, this.servers.get(s), this.ports.get(s));
-			if(resp != null && resp.ok) return resp;
-			//System.out.println("fail..."+op + " to "+s);
-		}
-	}
-	
-	@Override
-	public void run() {
-		try {
-			this.gate.await();
-		} catch (Exception e) {}
 
-		long start = Util.getCurrTime();
-		for(String op : this.ops) {
-			String[] item = op.split("\\s");
-			Op ope = null;
-			if(item[0].equals("put")) 
-				ope = new Op(item[0], item[1], item[2]);
-			else ope = new Op(item[0], item[1], "");
-			this.executeOp(ope);
-			//System.out.println("completed executing..."+ope);
+	public Response executeOp (Op op) {
+		Request req = new Request("client", op);
+		while(true) {
+			Response resp  = (Response) Messager.sendAndWaitReply(req, out, in);
+			if(resp != null && resp.ok) return resp;
+			this.connect();
+			System.out.println("fail..."+op);
 		}
-		long time = Util.getCurrTime() - start;
-		this.latency = time / (double) this.ops.size();
 	}
+
+	@Override
+		public void run() {
+			try {
+				this.gate.await();
+			} catch (Exception e) {}
+
+			int i = 0;
+			/*
+			   while(Util.getCurrTime() - tmp < Util.cutTime) {
+			   String op = this.ops.get(i ++);
+			   String[] item = op.split("\\s");
+			   Op ope = null;
+			   if(item[0].equals("put")) 
+			   ope = new Op(item[0], item[1], item[2]);
+			   else ope = new Op(item[0], item[1], "");
+			   this.executeOp(ope);
+			   }
+			 */
+			try {
+				Thread.sleep(Util.cutTime);
+			} catch (Exception e) {}
+
+			long start = Util.getCurrTime();
+			this.connect();
+			while(Util.getCurrTime() - start < Util.testTime) {
+				String op = this.ops.get(i++);
+				String[] item = op.split("\\s");
+				Op ope = null;
+				if(item[0].equals("put")) 
+					ope = new Op(item[0], item[1], item[2]);
+				else ope = new Op(item[0], item[1], "");
+				this.executeOp(ope);
+				this.count ++;
+			}
+			this.latency = Util.testTime / (double) this.count;
+		}
 }

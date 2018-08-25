@@ -13,18 +13,30 @@ class TcpRequestHandler implements Runnable {
 	}
 
 	public void run() {
-		Object obj = Messager.getMsg(s);
+		while(true) {
+			Object obj = Messager.getMsg(s);
+			if(obj == null) break;
 
-		//simulate delay of message
-		if(rand.nextDouble() < Util.fp)  {
-			long start = Util.getCurrTime();
-			long curr = Util.getCurrTime();
-			while(curr - start < Util.loop) {
-				curr = Util.getCurrTime();
+			//simulate delay of message
+			if(rand.nextDouble() < Util.fp)  {
+				long start = Util.getCurrTime();
+				long curr = Util.getCurrTime();
+				while(curr - start < Util.loop) {
+					curr = Util.getCurrTime();
+				}
 			}
+			Response resp = server.handleRequest(obj);
+			if(resp != null) Messager.sendMsg(resp, s);
+			try {
+				Thread.sleep(Util.wait);
+			} catch (Exception e) {}
 		}
-		Response resp = server.handleRequest(obj);
-		if(resp != null) Messager.sendMsg(resp, s);
+
+		try {
+			s.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 }
 

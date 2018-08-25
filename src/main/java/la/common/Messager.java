@@ -13,6 +13,7 @@ public class Messager {
 	public Object resp;
 	public int port;
 	public String host;
+	public static Socket socket = new Socket();
 
 	public Messager(boolean wait, Object msg, String host, int port) {
 		waitReply = wait;
@@ -33,9 +34,9 @@ public class Messager {
 			byte[] data = baos.toByteArray();
 			DatagramPacket packet  = new DatagramPacket(data, data.length, InetAddress.getByName(host), port);
 			socket.send(packet);
-			System.out.println("sent ");
+			//System.out.println("sent ");
 		} catch(Exception e) {
-			e.printStackTrace();
+			System.out.println("error "+ e);
 		} finally {
 			if(socket != null) {
 				try {
@@ -130,11 +131,11 @@ public class Messager {
 		}
 		return null;
 	}
-
+	
 	public static Object sendAndWaitReply(Object msg, String host, int port) {
+		Socket socket = new Socket();
 		try {
-			InetSocketAddress addr = new InetSocketAddress(host,port);
-			Socket socket = new Socket();
+			InetSocketAddress addr = new InetSocketAddress(host, port);
 			socket.connect(addr, Util.TIMEOUT);
 			ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
 			out.writeObject(msg);
@@ -146,6 +147,23 @@ public class Messager {
 			resp = in.readObject();
 			return resp;
 		} catch (Exception e) {
+			e.printStackTrace();
+			return null;
+		} finally {
+			try {
+				socket.close();
+			} catch (Exception e) {}
+		}
+
+	}
+
+	public static Object sendAndWaitReply(Object msg, ObjectOutputStream out, ObjectInputStream in) {
+		try {
+			out.writeObject(msg);
+			out.flush();
+			return in.readObject();
+		} catch (Exception e) {
+			e.printStackTrace();
 			return null;
 		}
 	}
@@ -169,6 +187,7 @@ public class Messager {
 			inputStream = new ObjectInputStream(socket.getInputStream());
 			resp = inputStream.readObject();
 		} catch(Exception e){
+			e.printStackTrace();
 			return resp;
 		}
 		return resp;

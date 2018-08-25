@@ -21,6 +21,8 @@ public class Util {
 	public static int freq = 7;
 	public static int threshold = 50;
 	public static int threadLimit = 50;
+	public static long testTime = 60 * 1000;
+	public static long cutTime = 5 * 1000;
 	public static double fp = 0.00;
 	public static boolean DEBUG = false;
 	public static boolean TEST = false;
@@ -33,9 +35,10 @@ public class Util {
 	public static String la_config = "config/la_config.txt";
 	public static String cass_config = "config/cassandra_config.txt";
 	public static Random rand = new Random();
-	public static final int TIMEOUT = 1000;
+	public static final int TIMEOUT = 100;
 	public static final int THREADS = 100;
 	public static final int fail = 10000;
+	public static final int wait = 2;
 
 	public static long getCurrTime() {
 		return System.currentTimeMillis();
