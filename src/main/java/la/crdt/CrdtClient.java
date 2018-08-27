@@ -20,15 +20,15 @@ class CrdtClient extends Client{
 	public ClientListener cl;
 	public int check_count;
 
-	public CrdtClient(List<String> ops, String config, int port, CyclicBarrier gate, int num_prop) {
-		super(ops, config, gate, num_prop);
+	public CrdtClient(List<String> ops, String config, int port, CyclicBarrier gate, int num_prop, int id) {
+		super(ops, config, gate, num_prop, id);
 		this.check_count = 0;
 		cl = new ClientListener(this, port);
 		cl.start();
 	}
 
-	public CrdtClient(List<String> ops, String config, CyclicBarrier gate, int num_prop) { 
-		super(ops, config, gate, num_prop);
+	public CrdtClient(List<String> ops, String config, CyclicBarrier gate, int num_prop, int id) { 
+		super(ops, config, gate, num_prop, id);
 	}
 
 	public Response executeOp(Op op) {
@@ -98,6 +98,7 @@ class CrdtClient extends Client{
 
 		int num_threads = Integer.parseInt(args[7]);
 		int num_prop = Integer.parseInt(args[8]);
+		int id = Integer.parseInt(args[9]);
 		CyclicBarrier gate = null;
 		DecimalFormat df = new DecimalFormat("#.00"); 
 
@@ -108,7 +109,7 @@ class CrdtClient extends Client{
 
 			for(int i = 0; i < num_threads; i++) {
 				ops[i] = Util.ops_generator(num_ops, max, val_len, coef, ratio);
-				clients[i] = new CrdtClient(ops[i], config, gate, num_prop);
+				clients[i] = new CrdtClient(ops[i], config, gate, num_prop, id);
 			}
 
 			ExecutorService es = Executors.newFixedThreadPool(num_threads);
@@ -138,7 +139,7 @@ class CrdtClient extends Client{
 		} else if(args[5].equals("c")) {
 			gate = new CyclicBarrier(1);
 			List<String> ops = Util.ops_generator(num_ops, max, val_len, coef, ratio);
-			CrdtClient c = new CrdtClient(ops, config, Util.c_port, gate, num_prop);
+			CrdtClient c = new CrdtClient(ops, config, Util.c_port, gate, num_prop, id);
 
 			long time = 0;
 			for(String op : c.ops) {

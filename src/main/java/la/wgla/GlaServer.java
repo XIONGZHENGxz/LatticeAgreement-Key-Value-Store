@@ -101,7 +101,6 @@ public class GlaServer extends Server{
 	}
 
 	public Response handleRequest(Object obj) {
-		if(obj == null) return null;
 		Request request = (Request) obj;	
 		Op req = request.op;
 		//System.out.println(this.me + " get request from client: "+ req);

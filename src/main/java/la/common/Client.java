@@ -30,13 +30,17 @@ public class Client extends Thread{
 	public Socket socket;
 	public ObjectOutputStream out;
 	public ObjectInputStream in;
+	public int id;
+	public int replica;
 
-	public Client(List<String> ops, String config, CyclicBarrier gate, int num_prop) { 
+	public Client(List<String> ops, String config, CyclicBarrier gate, int num_prop, int id) { 
 		this.servers = new ArrayList<>();
 		this.ports = new ArrayList<>();
 		Util.readConf(servers, ports, config);
 		this.ops = ops;
 		this.num_prop = num_prop;
+		this.id = id;
+		this.replica = this.id % this.servers.size();
 		this.gate = gate;
 	}
 
@@ -52,11 +56,8 @@ public class Client extends Thread{
 			try {
 				socket.connect(new InetSocketAddress(this.servers.get(replica), this.ports.get(replica)), Util.TIMEOUT);
 				socket.setSoTimeout(Util.TIMEOUT);
-				out = new ObjectOutputStream(socket.getOutputStream());
-				in = new ObjectInputStream(socket.getInputStream());
 				break;
 			} catch (Exception e) {
-				e.printStackTrace();
 			}
 		}
 	}
@@ -78,10 +79,11 @@ public class Client extends Thread{
 	public Response executeOp (Op op) {
 		Request req = new Request("client", op);
 		while(true) {
-			Response resp  = (Response) Messager.sendAndWaitReply(req, out, in);
-			if(resp != null && resp.ok) return resp;
+			//int s = Util.decideServer(this.servers.size());
+			//Response resp = (Response) Messager.sendAndWaitReply(req, this.servers.get(s), this.ports.get(s));
+			Response resp = (Response) Messager.sendAndWaitReply(req, socket);
+			if(resp != null) return resp;
 			this.connect();
-			System.out.println("fail..."+op);
 		}
 	}
 
@@ -91,25 +93,13 @@ public class Client extends Thread{
 				this.gate.await();
 			} catch (Exception e) {}
 
+			this.cut();
 			int i = 0;
-			/*
-			   while(Util.getCurrTime() - tmp < Util.cutTime) {
-			   String op = this.ops.get(i ++);
-			   String[] item = op.split("\\s");
-			   Op ope = null;
-			   if(item[0].equals("put")) 
-			   ope = new Op(item[0], item[1], item[2]);
-			   else ope = new Op(item[0], item[1], "");
-			   this.executeOp(ope);
-			   }
-			 */
-			try {
-				Thread.sleep(Util.cutTime);
-			} catch (Exception e) {}
-
 			long start = Util.getCurrTime();
+			long timeout = Util.testTime;
 			this.connect();
-			while(Util.getCurrTime() - start < Util.testTime) {
+			while(Util.getCurrTime() - start < timeout) {
+				if(i >= this.ops.size()) i = 0;
 				String op = this.ops.get(i++);
 				String[] item = op.split("\\s");
 				Op ope = null;
@@ -119,6 +109,23 @@ public class Client extends Thread{
 				this.executeOp(ope);
 				this.count ++;
 			}
-			this.latency = Util.testTime / (double) this.count;
+			this.latency = timeout / (double) this.count;
+			this.cut();
 		}
+
+		public void cut() {
+			int i = 0;
+			long tmp = Util.getCurrTime();
+			while(Util.getCurrTime() - tmp < Util.cutTime) {
+				if(i >= this.ops.size()) i = 0;
+				String op = this.ops.get(i++);
+				String[] item = op.split("\\s");
+				Op ope = null;
+				if(item[0].equals("put")) 
+					ope = new Op(item[0], item[1], item[2]);
+				else ope = new Op(item[0], item[1], "");
+				this.executeOp(ope);
+			}
+		}
+			
 }

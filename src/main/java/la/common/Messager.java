@@ -147,7 +147,6 @@ public class Messager {
 			resp = in.readObject();
 			return resp;
 		} catch (Exception e) {
-			e.printStackTrace();
 			return null;
 		} finally {
 			try {
@@ -168,6 +167,20 @@ public class Messager {
 		}
 	}
 
+	public  static Object sendAndWaitReply(Object msg, Socket socket) {
+		ObjectOutputStream out;
+		ObjectInputStream in;
+		try {
+			out = new ObjectOutputStream(socket.getOutputStream());
+			out.writeObject(msg);
+			out.flush();
+			in = new ObjectInputStream(socket.getInputStream());
+			return in.readObject();
+		} catch(Exception e){
+			return null;
+		}
+	}
+
 	public  static  void sendMsg(Object msg, Socket socket) {
 		ObjectOutputStream out;
 		try {
@@ -175,7 +188,7 @@ public class Messager {
 			out.writeObject(msg);
 			out.flush();
 		} catch(Exception e){
-			e.printStackTrace();
+		//	e.printStackTrace();
 		}
 	}
 
@@ -184,10 +197,11 @@ public class Messager {
 		Object resp = null;
 		ObjectInputStream inputStream;
 		try {
-			inputStream = new ObjectInputStream(socket.getInputStream());
+			InputStream is = socket.getInputStream();
+			inputStream = new ObjectInputStream(is);
 			resp = inputStream.readObject();
 		} catch(Exception e){
-			e.printStackTrace();
+			//e.printStackTrace();
 			return resp;
 		}
 		return resp;

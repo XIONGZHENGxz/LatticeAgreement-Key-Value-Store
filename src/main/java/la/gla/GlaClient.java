@@ -23,8 +23,8 @@ import la.common.Messager;
 
 class GlaClient extends Client {
 
-	public GlaClient(List<String> ops, String config, CyclicBarrier gate, int num_prop) { 
-		super(ops, config, gate, num_prop);
+	public GlaClient(List<String> ops, String config, CyclicBarrier gate, int num_prop, int id) { 
+		super(ops, config, gate, num_prop, id);
 	}
 
 	public boolean checkComp() {
@@ -93,17 +93,18 @@ class GlaClient extends Client {
 
 		int num_threads = Integer.parseInt(args[6]);
 		int num_prop = Integer.parseInt(args[7]);
+		int id = Integer.parseInt(args[8]);
 		int num_clients = 1;
-		if(args.length > 8)
-			num_clients = Integer.parseInt(args[8]);
+		if(args.length > 9)
+			num_clients = Integer.parseInt(args[9]);
 		CyclicBarrier gate = new CyclicBarrier(num_threads);
 
 		List<String>[] ops = new ArrayList[num_threads];
 		GlaClient[] clients = new GlaClient[num_threads];
 
 		for(int i = 0; i < num_threads; i++) {
-			ops[i] = Util.ops_generator(1000*num_ops, max, val_len, coef, ratio);
-			clients[i] = new GlaClient(ops[i], config, gate, num_prop);
+			ops[i] = Util.ops_generator(num_ops, max, val_len, coef, ratio);
+			clients[i] = new GlaClient(ops[i], config, gate, num_prop, id * num_threads + i);
 		}
 
 		ExecutorService es = Executors.newFixedThreadPool(num_threads);

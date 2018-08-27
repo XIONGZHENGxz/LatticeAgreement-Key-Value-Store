@@ -4,7 +4,7 @@ setup=${1}
 confJpaxos="config/jpaxos_config.txt"
 confOthers="config/config.txt"
 confMaster="config/masters.txt"
-numClients=1
+numClients=3
 
 jarFile="LA.jar"
 remoteDir="~/${username}/latticeAgreement"
@@ -104,9 +104,9 @@ do
 	if [ $target == "crdt" ]; then 
 		ssh -i $keyFile "${username}@${master}" "cd $remoteDir ; java -cp $jarFile la.crdt.CrdtClient $numOps $max $valLen $distribution $readsRatio t $configFile $numThreads $numProp" & 
 	elif [ "$target" == "gla" ] || [ "$target" == "pgla" ] || [ "$target" == "wgla" ]; then 
-		ssh -i $keyFile "${username}@${master}" "cd $remoteDir ; java -cp $jarFile la.gla.GlaClient $numOps $max $valLen $distribution $readsRatio $configFile $numThreads $numProp" &
+		ssh -i $keyFile "${username}@${master}" "cd $remoteDir ; java -cp $jarFile la.gla.GlaClient $numOps $max $valLen $distribution $readsRatio $configFile $numThreads $numProp $clientId" &
 	elif [ "$target" == "jpaxos" ]; then 
-		ssh -i $keyFile "${username}@${master}" "cd $remoteDir ; java -cp $jarFile la.jpaxos.JpaxosClient $numOps $max $valLen $distribution $readsRatio $configFile $numThreads $numClients" & 
+		ssh -i $keyFile "${username}@${master}" "cd $remoteDir ; java -cp $jarFile la.jpaxos.JpaxosClient $numOps $max $valLen $distribution $readsRatio $configFile $numThreads $numProp $numClients $clientId" & 
 	elif [ "$target" == "mgla" ]; then 
 		ssh -i $keyFile "${username}@${master}" "cd $remoteDir ; java -cp $jarFile la.mgla.MglaClient $numOps $max $valLen $distribution $readsRatio $configFile $numThreads $numProp" &
 	else
@@ -118,9 +118,9 @@ do
 	if [ $target == "crdt" ]; then 
 		res=`java -cp $jarFile la.crdt.CrdtClient $numOps $max $valLen $distribution $readsRatio t $configFile $numThreads $numProp $numClients` 
 	elif [ "$target" == "gla" ] || [ "$target" == "pgla" ] || [ "$target" == "wgla" ]; then 
-		res=`java -cp $jarFile la.gla.GlaClient $numOps $max $valLen $distribution $readsRatio $configFile $numThreads $numProp $numClients` 
+		res=`java -cp $jarFile la.gla.GlaClient $numOps $max $valLen $distribution $readsRatio $configFile $numThreads $numProp $clientId $numClients`
 	elif [ "$target" == "jpaxos" ]; then 
-		res=`java -cp $jarFile la.jpaxos.JpaxosClient $numOps $max $valLen $distribution $readsRatio $configFile $numThreads $numProp $numClients` 
+		res=`java -cp $jarFile la.jpaxos.JpaxosClient $numOps $max $valLen $distribution $readsRatio $configFile $numThreads $numProp $numClients $clientId` 
 	elif [ "$target" == "mgla" ]; then 
 		res=`java -cp $jarFile la.mgla.MglaClient $numOps $max $valLen $distribution $readsRatio $configFile $numThreads $numProp $numClients`
 	else

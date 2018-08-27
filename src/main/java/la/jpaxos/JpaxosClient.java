@@ -28,11 +28,13 @@ class JpaxosClient extends Thread{
 	public CyclicBarrier gate;
 	public long count;
 	public double latency;
+	public int id;
 
-	public JpaxosClient(List<String> ops, String file, CyclicBarrier gate) { 
+	public JpaxosClient(List<String> ops, String file, CyclicBarrier gate, int id) { 
 		this.ops = ops;
 		this.gate = gate;
 		this.count = 0;
+		this.id = id;
 		try {
 			client = new Client(new Configuration(file));
 		} catch (Exception e) {}
@@ -52,7 +54,6 @@ class JpaxosClient extends Thread{
 			ByteArrayInputStream bais = new ByteArrayInputStream(response);
 			DataInputStream dis = new DataInputStream(bais);
 			String s = dis.readUTF();
-			//	System.out.println("get response for "+ cmd + " " + s); 
 		} catch (Exception e) {
 		} finally {
 			if(baos != null) {
@@ -74,7 +75,6 @@ class JpaxosClient extends Thread{
 				this.gate.await();
 			} catch (Exception e) {}
 
-			long tmp = Util.getCurrTime(); 
 			int i = 0;
 			/*
 			while(Util.getCurrTime() - tmp < Util.cutTime) {
@@ -93,8 +93,10 @@ class JpaxosClient extends Thread{
 			}
 
 			long start = Util.getCurrTime();
+			long timeout = Util.testTime;
 			client.connect();
-			while(Util.getCurrTime() - start < Util.testTime) {
+			while(Util.getCurrTime() - start < timeout) {
+				if(i >= this.ops.size()) i = 0;
 				String op = this.ops.get(i++);
 				String[] item = op.split("\\s");
 				MapCommand cmd = null;
@@ -105,7 +107,7 @@ class JpaxosClient extends Thread{
 				count ++;
 			}
 				
-			this.latency = Util.testTime / (double) this.count;
+			this.latency = timeout / (double) this.count;
 		}
 
 	public static void main(String...args) {
@@ -118,14 +120,15 @@ class JpaxosClient extends Thread{
 		String configFile = args[5];
 		int num_threads = Integer.parseInt(args[6]);
 		int num_clients = Integer.parseInt(args[7]);
+		int id = Integer.parseInt(args[8]);
 		CyclicBarrier gate = new CyclicBarrier(num_threads);
 
 		List<String>[] ops = new ArrayList[num_threads];
 		JpaxosClient[] clients = new JpaxosClient[num_threads];
 
 		for(int i = 0; i < num_threads; i++) {
-			ops[i] = Util.ops_generator(1000 * num_ops, max, val_len, coef, ratio);
-			clients[i] = new JpaxosClient(ops[i], configFile, gate);
+			ops[i] = Util.ops_generator(num_ops, max, val_len, coef, ratio);
+			clients[i] = new JpaxosClient(ops[i], configFile, gate, id);
 		}
 
 		ExecutorService es = Executors.newFixedThreadPool(num_threads);

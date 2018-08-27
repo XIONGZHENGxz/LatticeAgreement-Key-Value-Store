@@ -88,7 +88,6 @@ class JpaxosServer extends SimplifiedService {
 		
 		HashMap<String, String> map = Util.initMap(Integer.parseInt(args[1]));
 
-
 		Replica replica = new Replica(new Configuration(args[2]), id, new JpaxosServer(map));
 
 		replica.start();

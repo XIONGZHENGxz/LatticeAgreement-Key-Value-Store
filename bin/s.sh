@@ -33,7 +33,7 @@ for i in `seq 0 ${num}`; do
 	master=${master%$'\n'}
 	echo $master
 	if [[ ${2} == "-n" ]]; then
-		ssh -i $keyFile "${username}@${master}" "cd ~/; mkdir -p "${remoteDir}""
+		ssh -i $keyFile "${username}@${master}" "cd ~/; rm -f $remoteDir ; mkdir -p "${remoteDir}""
 	fi
 	scp -i $keyFile $config "${username}@${master}:${remoteDir}"
 	scp -i $keyFile $confJpaxos "${username}@${master}:${remoteDir}"

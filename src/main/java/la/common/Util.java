@@ -19,9 +19,10 @@ public class Util {
 	public static int syncFreq = 5000;
 	public static int loop = 1000;
 	public static int freq = 7;
-	public static int threshold = 50;
+	public static int threshold = 80;
 	public static int threadLimit = 50;
-	public static long testTime = 60 * 1000;
+	public static long testTime = 30 * 1000;
+
 	public static long cutTime = 5 * 1000;
 	public static double fp = 0.00;
 	public static boolean DEBUG = false;
@@ -29,13 +30,14 @@ public class Util {
 	public static boolean DELAY = false; //simulate remote replica 
 	public static int delayReplica = 2; //remote replica 
 	public static int clock = 0;
+	public static int batchSize = 20;
 	public static String checker_host = "192.168.12.13";
 	public static final String[] types = {"get", "put", "remove"};
 	public static String opFile = "ops.txt";
 	public static String la_config = "config/la_config.txt";
 	public static String cass_config = "config/cassandra_config.txt";
 	public static Random rand = new Random();
-	public static final int TIMEOUT = 100;
+	public static final int TIMEOUT = 500;
 	public static final int THREADS = 100;
 	public static final int fail = 10000;
 	public static final int wait = 2;
