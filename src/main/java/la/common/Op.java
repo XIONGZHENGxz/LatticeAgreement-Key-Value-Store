@@ -24,7 +24,6 @@ public class Op implements Serializable {
 	}
 
 	public ByteBuffer toBytes() {
-		System.out.println(key + " " + val);
 		byte[] keyByte = Util.toByteArray(key);
 		byte[] valByte = Util.toByteArray(val);
 		ByteBuffer buffer = ByteBuffer.allocate(12 + keyByte.length + valByte.length);

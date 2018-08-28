@@ -21,12 +21,15 @@ public class Util {
 	public static int syncFreq = 5000;
 	public static int loop = 1000;
 	public static int freq = 7;
-	public static int threshold = 50;
+	public static int threshold = 800;
 	public static int requestSize = 20;
-	public static int threadLimit = 5;
-	public static int processors = 50;
+	public static int threadLimit = 100;
+	public static int cutTime = 5 * 1000;
+	public static int testTime = 30 * 1000;
+	public static int processors = 5;
+	public static int batchSize = 5;
 	public static double fp = 0.00;
-	public static boolean DEBUG = true;
+	public static boolean DEBUG = false;
 	public static boolean TEST = false;
 	public static boolean DELAY = false; //simulate remote replica 
 	public static int delayReplica = 2; //remote replica 
@@ -41,6 +44,7 @@ public class Util {
 	public static final int session_timeout = 1000 * 1000;
 	public static final int THREADS = 100;
 	public static final int fail = 10000;
+	public static final int wait = 3;
 
 	public static long getCurrTime() {
 		return System.currentTimeMillis();

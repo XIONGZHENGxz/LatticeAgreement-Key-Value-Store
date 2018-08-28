@@ -95,7 +95,8 @@ class GlaClient extends Client {
 
 		int num_threads = Integer.parseInt(args[6]);
 		int num_prop = Integer.parseInt(args[7]);
-		int id = Integer.parseInt(args[8]);
+		int num_clients = Integer.parseInt(args[8]);
+		int id = Integer.parseInt(args[9]);
 		CyclicBarrier gate = new CyclicBarrier(num_threads);
 
 		List<String>[] ops = new ArrayList[num_threads];
@@ -115,21 +116,21 @@ class GlaClient extends Client {
 		long start = Util.getCurrTime();
 		try {
 			es.shutdown();
-			ok = es.awaitTermination(10, TimeUnit.MINUTES);
+			ok = es.awaitTermination(2, TimeUnit.MINUTES);
 		} catch(Exception e) {}
 
 		if(!ok) System.out.println("incomplete simulation....");
 
 		DecimalFormat df = new DecimalFormat("#.00"); 
-		long time = Util.getCurrTime() - start;
-		double th = (double) num_threads * 1000 * num_ops / (double) time;
-
-		System.out.println(df.format(th));
 		double sum = 0.0;
+		long sum_count = 0;
 		for(int i = 0; i < num_threads; i++) {
 			sum += clients[i].latency;
+			sum_count += clients[i].count;
 		}
 		double avgLatency = sum / num_threads;
+		double th = (double) num_clients * 1000 * sum_count / (double) Util.testTime;
+		System.out.println(df.format(th));
 		System.out.println(df.format(avgLatency));
 
 		if(Util.TEST) {

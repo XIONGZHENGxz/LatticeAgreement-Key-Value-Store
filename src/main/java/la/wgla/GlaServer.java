@@ -109,7 +109,7 @@ public class GlaServer extends Server{
 		//		this.l.fail = true;
 		//		this.gla.l.fail = true;
 		//	} else {
-		System.out.println(this.me +" get request from client..." + req);
+		if(Util.DEBUG) System.out.println(this.me +" get request from client..." + req);
 		//if(req != null) return new Response(Result.TRUE, "");
 		if(req.type == Type.GET) {
 			String kid = this.me + "" + this.gla.seq;
@@ -175,7 +175,8 @@ public class GlaServer extends Server{
 			for(Op o : this.gla.learntVal(i)) {
 				Set<Op> prev = this.gla.learntVal(i - 1);
 				if(prev.contains(o)) continue;
-				if(o.type == Type.PUT) this.put(o.key, o.val);
+				if(o.type == Type.PUT) {
+					this.put(o.key, o.val);
 				else if(o.type == Type.REMOVE) this.remove(o.key);
 			}
 		}

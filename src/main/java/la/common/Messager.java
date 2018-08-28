@@ -30,7 +30,7 @@ public class Messager {
 	}
 
 	//send msg via datagram socket
-	public synchronized static void sendPacket(Object msg, String host, int port) {
+	public static void sendPacket(Object msg, String host, int port) {
 		DatagramSocket socket = null; 
 		try {
 			socket = new DatagramSocket();
@@ -40,9 +40,9 @@ public class Messager {
 			byte[] data = baos.toByteArray();
 			DatagramPacket packet  = new DatagramPacket(data, data.length, InetAddress.getByName(host), port);
 			socket.send(packet);
-			System.out.println("sent ");
+			//System.out.println("sent ");
 		} catch(Exception e) {
-			e.printStackTrace();
+		//	e.printStackTrace();
 		} finally {
 			if(socket != null) {
 				try {
@@ -160,14 +160,12 @@ public class Messager {
 	public  static  void sendMsg(Response msg, SelectionKey key) {
 		SocketChannel socket = (SocketChannel) key.channel();
 		ByteBuffer bb = msg.writeToBuffer();
-		//System.out.println("bytebuffer... " + bb);
 		bb.flip();
 		try {
 			int bytesWrite = socket.write(bb);
-			//System.out.println("write success....");
 			if(bytesWrite < 1) System.out.println("write failed...");
 		} catch(Exception e){
-			e.printStackTrace();
+			//e.printStackTrace();
 		}
 	}
 
@@ -209,6 +207,7 @@ public class Messager {
 			op.val = new String(valBytes, "UTF-8");
 		} catch (Exception e) {
 			e.printStackTrace();
+			return null;
 		}
 		return op;
 	}

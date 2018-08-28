@@ -28,10 +28,12 @@ public class Client extends Thread{
 	public CyclicBarrier gate;
 	public int num_prop;
 	public double latency;
+	//public Socket socket;
 	public SocketChannel socket;
 	public int id;
 	public DataOutputStream output;
 	public DataInputStream input;
+	public long count;
 	public Random rand;
 
 	public Client(List<String> ops, String config, CyclicBarrier gate, int num_prop, int id) { 
@@ -61,28 +63,56 @@ public class Client extends Thread{
 		try {
 			socket.write(buffer);
 			ByteBuffer bb = ByteBuffer.allocate(48);
-			long start = Util.getCurrTime();
 			int bytes = socket.read(bb);
-			while(bytes != -1 && bytes == 0 && Util.getCurrTime() - start < Util.TIMEOUT) {
+			long start = Util.getCurrTime();
+			while(bytes < 1 && Util.getCurrTime() - start < Util.TIMEOUT) {
+				try {
+					Thread.sleep(5);
+				} catch (Exception e) {}
 				bytes = socket.read(bb);
 			}
 			if(bytes < 1) return false;
-
 			bb.flip();
 			Result res = Result.values()[bb.getInt()];
-			System.out.println("get input ..." + res);
 			if(res == Result.TRUE) return true;
+			/*
+			byte[] req = buffer.array();
+			output.write(req);
+			output.flush();
+			socket.setSoTimeout(Util.TIMEOUT);
+			Result res = Result.values()[input.readInt()];
+			byte[] val = new byte[48];
+			input.readFully(val);
+			*/
+			//System.out.println("get input ..." + res);
 		} catch (Exception e) {
-			e.printStackTrace();
+			return false;
 		}
 		return false;
 	}
 
+	public void clean() {
+		if(socket != null) {
+			try {
+				socket.close();
+				socket = null;
+			} catch (Exception e) {}
+		}
+	}
+
 	public boolean connect(int replica) {
+		this.clean();
 		try {
 			InetSocketAddress addr = new InetSocketAddress(this.servers.get(replica), this.ports.get(replica));
 			socket = SocketChannel.open(addr);
 			socket.configureBlocking(false);
+			/*
+			socket = new Socket();
+			socket.connect(addr, Util.TIMEOUT);
+			socket.setSoTimeout(Util.TIMEOUT);
+			output = new DataOutputStream(socket.getOutputStream());
+			input = new DataInputStream(socket.getInputStream());
+			*/
 			//output = new DataOutputStream(socket.getOutputStream());
 			//input = new DataInputStream(socket.getInputStream());
 		} catch (Exception e) {
@@ -103,14 +133,17 @@ public class Client extends Thread{
 			} catch (Exception e) {}
 
 			int replica = this.id % this.num_prop;
-			long start = Util.getCurrTime();
 			boolean connected = this.connect(replica);
-
 			while(!connected) {
 				connected = this.reconnect();
 			}
-
-			for(String op : this.ops) {
+			long timeout = Util.testTime;
+			this.cut(Util.cutTime);
+			int i = 0;
+			long start = Util.getCurrTime();
+			while(Util.getCurrTime() - start < timeout) {
+				if(i >= this.ops.size()) i = 0;
+				String op = this.ops.get(i ++);
 				String[] item = op.split("\\s");
 				Op ope = null;
 				if(item[0].equals("put")) 
@@ -119,13 +152,29 @@ public class Client extends Thread{
 
 				while(!this.execute(ope)) {
 					this.reconnect();
-					break;
 				}
+				this.count ++;
 			}
-			long time = Util.getCurrTime() - start;
-			this.latency = time / (double) this.ops.size();
-			try {
-				socket.close();
-			} catch (Exception e) {}
+			this.latency = timeout / (double) this.count;
+			this.cut(Util.cutTime);
 		}
+
+	public void cut(int timeout) {
+		int i = 0;
+		long start = Util.getCurrTime();
+		while(Util.getCurrTime() - start < timeout) {
+			if(i >= this.ops.size()) i = 0;
+			String op = this.ops.get(i ++);
+			String[] item = op.split("\\s");
+			Op ope = null;
+			if(item[0].equals("put")) 
+				ope = new Op(Type.PUT, item[1], item[2]);
+			else ope = new Op(Type.GET, item[1], "");
+
+			while(!this.execute(ope)) {
+				this.reconnect();
+			}
+		}
+	}
+
 }

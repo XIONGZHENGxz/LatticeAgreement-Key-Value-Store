@@ -21,17 +21,9 @@ public class TcpRequestHandler implements Runnable {
 	public void run() {
 
 		//simulate delay of message
-		if(rand.nextDouble() < Util.fp){
-			long start = Util.getCurrTime();
-			long curr = Util.getCurrTime();
-			while(curr - start < Util.loop) {
-				curr = Util.getCurrTime();
-			}
-		}
-
 		Response resp = server.handleRequest(op);
 		if(resp != null) {
-			System.out.println("complete handling..." + resp);
+			if(Util.DEBUG) System.out.println("complete handling..." + resp);
 			Messager.sendMsg(resp, key);
 		}
 	}

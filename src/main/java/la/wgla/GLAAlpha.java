@@ -47,6 +47,7 @@ public class GLAAlpha extends Server implements Runnable {
 	public Set<Integer> reqs;
 	public Map<Integer, Boolean> changed;
 	public Map<Integer, Set<Op>> deltas;
+	public int currSize;
 
 	public GLAAlpha (GlaServer s) {
 		super(s.me, s.peers, s.port, s.ports);
@@ -121,7 +122,7 @@ public class GLAAlpha extends Server implements Runnable {
 		}
 
 		this.seq ++;
-		System.out.println(this.s.me + " start seq: " + this.seq );
+		//System.out.println(this.s.me + " start seq: " + this.seq + " val size: " + writes.size());
 		this.handleAllProp();
 
 		boolean writesWaked = false;
@@ -185,6 +186,8 @@ public class GLAAlpha extends Server implements Runnable {
 		if(reads != null) {
 			this.learntReads.put(this.seq, reads);
 			this.readBuffVal.removeAll(reads);
+		} else {
+			this.learntReads.put(this.seq, new HashSet<Op>());
 		}
 		this.LV.put(this.seq , writes);
 
@@ -208,6 +211,7 @@ public class GLAAlpha extends Server implements Runnable {
 			this.active = true;
 			while(true) { 
 				this.seq = this.catchUp();
+				if(this.writeBuffVal.size() + this.readBuffVal.size() < Util.batchSize) this.sleep(Util.wait);
 				this.start();
 				if(this.writeBuffVal.size() == 0 && this.readBuffVal.size() == 0) break;
 			}
@@ -268,7 +272,6 @@ public class GLAAlpha extends Server implements Runnable {
 		this.writeBuffVal.add(op);
 		if(!this.active) {
 			Thread t = new Thread(this);
-			this.active = true;
 			t.start();
 		}
 	}
@@ -277,7 +280,6 @@ public class GLAAlpha extends Server implements Runnable {
 		this.readBuffVal.add(op);
 		if(!this.active) {
 			Thread t = new Thread(this);
-			this.active = true;
 			t.start();
 		}
 	}
@@ -288,7 +290,6 @@ public class GLAAlpha extends Server implements Runnable {
 		if(this.writeBuffVal.size() > 0 || this.readBuffVal.size() > 0) {
 			if(!this.active) {
 				Thread t = new Thread(this);
-				this.active = true;
 				t.start();
 			}
 		}
@@ -362,10 +363,10 @@ public class GLAAlpha extends Server implements Runnable {
 
 	public Response handleRequest(Object obj) {
 		Request req = (Request) obj;
-		System.out.println("get request "+req);
+		//System.out.println("get request "+req);
 
 		if(req.type.equals("proposal")) {
-			System.out.println(this.me + " proposal...."+req.seq + " " + this.seq);
+			//System.out.println(this.me + " proposal...."+req.seq + " " + this.seq);
 			if(req.seq < this.seq) {
 				req.writes.removeAll(this.LV.get(req.seq));
 				req.reads.removeAll(this.learntReads.get(req.seq));
@@ -387,7 +388,7 @@ public class GLAAlpha extends Server implements Runnable {
 						this.decided.put(req.seq - 1, req.learntWrites);
 					}
 
-					if(!this.learntReads.containsKey(req.seq - 1) && req.learntReads != null) {
+					if(!this.learntReads.containsKey(req.seq - 1)) {
 						this.learntReads.put(req.seq - 1, req.learntReads);
 					}
 				}

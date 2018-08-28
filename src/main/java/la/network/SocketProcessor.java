@@ -70,8 +70,10 @@ public class SocketProcessor implements Runnable {
 				while(keyIterator.hasNext()) {
 					SelectionKey key = keyIterator.next();
 					Op op = Messager.getMsg(key);
-					TcpRequestHandler req = new TcpRequestHandler(server, key, op);
-					es.execute(req);
+					if(op != null) {
+						TcpRequestHandler req = new TcpRequestHandler(server, key, op);
+						es.execute(req);
+					}
 					keyIterator.remove();
 				}
 				selectedKeys.clear();

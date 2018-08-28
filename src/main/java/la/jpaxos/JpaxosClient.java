@@ -27,10 +27,12 @@ class JpaxosClient extends Thread{
 	public Client client;
 	public CyclicBarrier gate;
 	public double latency;
+	public long count;
 
 	public JpaxosClient(List<String> ops, String file, CyclicBarrier gate) { 
 		this.ops = ops;
 		this.gate = gate;
+		this.count = 0;
 		try {
 			client = new Client(new Configuration(file));
 		} catch (Exception e) {}
@@ -41,46 +43,66 @@ class JpaxosClient extends Thread{
 			try {
 				this.gate.await();
 			} catch (Exception e) {}
-
+			
+			client.connect();
+			this.cut(Util.cutTime);
 			long start = Util.getCurrTime(); 
-			for(String op : this.ops) {
-				client.connect();
-				String[] item = op.split("\\s");
-				MapCommand cmd = null;
-				if(item[0].equals("put")) 
-					cmd = new MapCommand(item[1], item[2]);
-				else cmd = new MapCommand(item[1], "");
-				ObjectOutputStream oos = null;
-				ByteArrayOutputStream baos = null;
-
-				try {
-					baos = new ByteArrayOutputStream();
-					oos = new ObjectOutputStream(baos);
-					oos.writeObject(cmd);
-					oos.flush();
-					byte[] request = baos.toByteArray();
-					byte[] response = client.execute(request); 
-					ByteArrayInputStream bais = new ByteArrayInputStream(response);
-					DataInputStream dis = new DataInputStream(bais);
-					String s = dis.readUTF();
-				//	System.out.println("get response for "+ cmd + " " + s); 
-				} catch (Exception e) {
-				} finally {
-					if(baos != null) {
-						try {
-							baos.close();
-						} catch (Exception e) {}
-					} 
-					if(oos != null) {
-						try {
-							oos.close();
-						} catch (Exception e) {}
-					}
-				}
+			long timeout = Util.testTime;
+			int i = 0;
+			while(Util.getCurrTime() - start < timeout) {
+				if(i >= this.ops.size()) i = 0;
+				String op = this.ops.get(i ++);	
+				this.execute(op);
+				this.count ++;
 			}
-			long time = Util.getCurrTime() - start;
-			this.latency = time / (double) this.ops.size();
+			this.latency = timeout / (double) this.count;
+			this.cut(Util.cutTime);
 		}
+
+	public void cut(int timeout) {
+		int i = 0;
+		long start = Util.getCurrTime();
+		while(Util.getCurrTime() - start < timeout) {
+			if(i >= this.ops.size()) i = 0;
+			String op = this.ops.get(i ++);
+			this.execute(op);
+		}
+	}
+
+	public void execute(String op) {
+		String[] item = op.split("\\s");
+		MapCommand cmd = null;
+		if(item[0].equals("put")) 
+			cmd = new MapCommand(item[1], item[2]);
+		else cmd = new MapCommand(item[1], "");
+		ObjectOutputStream oos = null;
+		ByteArrayOutputStream baos = null;
+
+		try {
+			baos = new ByteArrayOutputStream();
+			oos = new ObjectOutputStream(baos);
+			oos.writeObject(cmd);
+			oos.flush();
+			byte[] request = baos.toByteArray();
+			byte[] response = this.client.execute(request); 
+			ByteArrayInputStream bais = new ByteArrayInputStream(response);
+			DataInputStream dis = new DataInputStream(bais);
+			String s = dis.readUTF();
+			//System.out.println("get response..." +s);
+		} catch (Exception e) {
+		} finally {
+			if(baos != null) {
+				try {
+					baos.close();
+				} catch (Exception e) {}
+			} 
+			if(oos != null) {
+				try {
+					oos.close();
+				} catch (Exception e) {}
+			}
+		}
+	}
 
 	public static void main(String...args) {
 		int num_ops = Integer.parseInt(args[0]);
@@ -117,13 +139,13 @@ class JpaxosClient extends Thread{
 		if(!ok) System.out.println("incomplete simulation....");
 		DecimalFormat df = new DecimalFormat("#.00"); 
 		double sum = 0.0;
+		long sum_count = 0;
 		for(int i = 0; i < num_threads; i++) {
 			sum += clients[i].latency;
+			sum_count += clients[i].count;
 		}
 		double avgLatency = sum / num_threads;
-		long time = Util.getCurrTime() - start;
-
-		System.out.println(df.format((double) num_threads * num_clients * num_ops *num_ops / (double)time));
+		System.out.println(df.format((double) num_clients * 1000 * sum_count / (double)Util.testTime));
 		System.out.println(df.format(avgLatency));
 	}
 }
