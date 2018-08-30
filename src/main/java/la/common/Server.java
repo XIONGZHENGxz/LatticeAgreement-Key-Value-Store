@@ -28,7 +28,16 @@ public class Server {
 		this.port = port;
 	}
 
+	public void applyWrites() {
+	}
+	public void applyReads() {
+	}
+
 	public Response handleRequest(Object req) {
+		return null;
+	}
+
+	public Response handleRequest(int socketId, Object req) {
 		return null;
 	}
 }

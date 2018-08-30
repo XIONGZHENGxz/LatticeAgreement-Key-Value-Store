@@ -11,6 +11,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.Queue;
 import java.util.LinkedList;
 import java.util.ArrayList;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.List;
 
 import la.common.Util;
@@ -27,12 +29,14 @@ public class SocketAcceptor extends Thread {
 	private ExecutorService es;
 	private List<SocketProcessor> sps;
 	private Server server;
+	public Map<Integer, SocketChannel> socketMap;
 
 	public SocketAcceptor(Server server, int tcpPort) {
 		this.tcpPort = tcpPort;
 		this.server = server;
 		this.sps = new ArrayList<>();
 		this.es = Executors.newFixedThreadPool(Util.threadLimit);
+		this.socketMap = new HashMap<>();
 	}
 
 	public void run() {
@@ -48,19 +52,21 @@ public class SocketAcceptor extends Thread {
 			try{
 				SocketChannel socketChannel = this.serverSocket.accept();
 
-				if(Util.DEBUG) System.out.println("Socket accepted: " + socketChannel);
+				System.out.println("Socket accepted: " + socketChannel);
 
 				//todo check if the queue can even accept more sockets.
+				socketMap.put(socketId, socketChannel);
+				Socket socket = new Socket(socketId, socketChannel);
 				SocketProcessor sp;
 				if(sps.size() < Util.processors) {
 					sp = new SocketProcessor(server);
 					sps.add(sp);
-					sp.add(socketChannel);
+					sp.add(socket);
 					Thread t = new Thread(sp);
 					es.execute(t);
 				} else {
 					sp = sps.get(socketId % sps.size());
-					sp.add(socketChannel);
+					sp.add(socket);
 				}
 				socketId ++;
 			} catch(IOException e){

@@ -42,7 +42,7 @@ public class Messager {
 			socket.send(packet);
 			//System.out.println("sent ");
 		} catch(Exception e) {
-		//	e.printStackTrace();
+			e.printStackTrace();
 		} finally {
 			if(socket != null) {
 				try {
@@ -157,15 +157,14 @@ public class Messager {
 		}
 	}
 
-	public  static  void sendMsg(Response msg, SelectionKey key) {
-		SocketChannel socket = (SocketChannel) key.channel();
+	public  static  void sendMsg(Response msg, SocketChannel socket) {
 		ByteBuffer bb = msg.writeToBuffer();
 		bb.flip();
 		try {
 			int bytesWrite = socket.write(bb);
 			if(bytesWrite < 1) System.out.println("write failed...");
 		} catch(Exception e){
-			//e.printStackTrace();
+		//	e.printStackTrace();
 		}
 	}
 
@@ -180,19 +179,19 @@ public class Messager {
 		}
 	}
 
+	/*
 	public static Op getMsg(SelectionKey key) {
+		Socket s = (Socket) key.attachment();
 		SocketChannel socket = (SocketChannel) key.channel();
 		Op op = new Op();
-		ByteBuffer buffer = ByteBuffer.allocate(48);
 		int byteRead = -1;
 		try {
-			byteRead = socket.read(buffer);
-			//System.out.println("received buffer..." + buffer + " " + byteRead);
-			buffer.flip();
+			byteRead = socket.read(s.buffer);
+			System.out.println("received buffer..." + buffer + " " + byteRead);
+			s.buffer.flip();
 			if(byteRead == 0) return null; 
 			if(byteRead < 0) {
 				try {
-					key.attach(null);
 					key.cancel();
 					key.channel().close();
 				} catch (Exception e) {}
@@ -205,6 +204,7 @@ public class Messager {
 			buffer.get(valBytes, 0, valBytes.length);
 			op.key = new String(keyBytes, "UTF-8");
 			op.val = new String(valBytes, "UTF-8");
+			buffer.clear();
 		} catch (Exception e) {
 			e.printStackTrace();
 			return null;
@@ -212,6 +212,7 @@ public class Messager {
 		return op;
 	}
 
+*/
 	public  void sendMsg(String msg, String host, int port) {
 		try {
 			Socket socket = new Socket();

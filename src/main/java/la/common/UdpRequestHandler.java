@@ -26,15 +26,6 @@ public class UdpRequestHandler implements Runnable {
 			e.printStackTrace();
 		}
 
-		//simulate delay of message
-		if(rand.nextDouble() < Util.fp)  {
-			long start = Util.getCurrTime();
-			long curr = Util.getCurrTime();
-			while(curr - start < Util.loop) {
-				curr = Util.getCurrTime();
-			}
-		}
-
 		if(obj != null)
 		server.handleRequest(obj);
 	}

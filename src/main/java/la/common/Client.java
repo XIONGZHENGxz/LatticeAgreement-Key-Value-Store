@@ -43,6 +43,7 @@ public class Client extends Thread{
 		this.ops = ops;
 		this.num_prop = num_prop;
 		this.gate = gate;
+		this.rand = new Random();
 		this.id = id;
 		this.rand = new Random();
 	}
@@ -58,6 +59,7 @@ public class Client extends Thread{
 	}
 
 	public boolean execute (Op op) {
+		//System.out.println(this.id + " executing..." +op);
 		ByteBuffer buffer = op.toBytes();
 		buffer.flip();
 		try {
@@ -122,6 +124,9 @@ public class Client extends Thread{
 	}
 
 	public boolean reconnect() {
+		try {
+			Thread.sleep(rand.nextInt(Util.TIMEOUT));
+		} catch (Exception e) {}
 		int replica = rand.nextInt(this.servers.size());
 		return this.connect(replica);
 	}
@@ -151,6 +156,7 @@ public class Client extends Thread{
 				else ope = new Op(Type.GET, item[1], "");
 
 				while(!this.execute(ope)) {
+					int next = (replica + 1 + rand.nextInt(this.servers.size() - 1)) % this.servers.size();
 					this.reconnect();
 				}
 				this.count ++;

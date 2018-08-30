@@ -21,13 +21,14 @@ public class Util {
 	public static int syncFreq = 5000;
 	public static int loop = 1000;
 	public static int freq = 7;
-	public static int threshold = 800;
-	public static int requestSize = 20;
-	public static int threadLimit = 100;
+	public static int threshold = 250;
+	public static int requestSize = 48;
+	public static int threadLimit = 80;
 	public static int cutTime = 5 * 1000;
-	public static int testTime = 30 * 1000;
-	public static int processors = 5;
-	public static int batchSize = 5;
+	public static int testTime = 50 * 1000;
+	public static int processors = 3;
+	public static int writer = 12;
+	public static int batchSize = 0;
 	public static double fp = 0.00;
 	public static boolean DEBUG = false;
 	public static boolean TEST = false;
@@ -40,11 +41,11 @@ public class Util {
 	public static String la_config = "config/la_config.txt";
 	public static String cass_config = "config/cassandra_config.txt";
 	public static Random rand = new Random();
-	public static final int TIMEOUT = 1000;
+	public static final int TIMEOUT = 2000;
 	public static final int session_timeout = 1000 * 1000;
 	public static final int THREADS = 100;
 	public static final int fail = 10000;
-	public static final int wait = 3;
+	public static final int wait = 0;
 
 	public static long getCurrTime() {
 		return System.currentTimeMillis();
