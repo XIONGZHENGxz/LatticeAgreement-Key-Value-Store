@@ -83,8 +83,7 @@ public class Client extends Thread{
 			output.flush();
 			socket.setSoTimeout(Util.TIMEOUT);
 			Result res = Result.values()[input.readInt()];
-			byte[] val = new byte[48];
-			input.readFully(val);
+			if(res == Result.TRUE) return true;
 			*/
 			//System.out.println("get input ..." + res);
 		} catch (Exception e) {
@@ -106,11 +105,18 @@ public class Client extends Thread{
 		this.clean();
 		try {
 			InetSocketAddress addr = new InetSocketAddress(this.servers.get(replica), this.ports.get(replica));
-			socket = SocketChannel.open(addr);
+			socket = SocketChannel.open();
+			socket.connect(addr);
+			long start = Util.getCurrTime();
+			while(!socket.finishConnect()) {
+				if(Util.getCurrTime() - start > Util.CONNECT_TIMEOUT) 
+					return false;
+			}
+
 			socket.configureBlocking(false);
 			/*
 			socket = new Socket();
-			socket.connect(addr, Util.TIMEOUT);
+			socket.connect(addr, Util.CONNECT_TIMEOUT);
 			socket.setSoTimeout(Util.TIMEOUT);
 			output = new DataOutputStream(socket.getOutputStream());
 			input = new DataInputStream(socket.getInputStream());

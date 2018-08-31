@@ -34,11 +34,11 @@ for i in `seq 0 ${num}`; do
 	echo $master
 	if [[ ${2} == "-n" ]]; then
 		ssh -i $keyFile "${username}@${master}" "cd ~/; mkdir -p "${remoteDir}""
-	fi
 	scp -i $keyFile $config "${username}@${master}:${remoteDir}"
 	scp -i $keyFile $confJpaxos "${username}@${master}:${remoteDir}"
 	scp -i $keyFile $confMaster "${username}@${master}:${remoteDir}"
 	scp -i $keyFile "bin/kill.sh" "${username}@${master}:${remoteDir}"
+	fi
 	if [[ ${1} == "-p" ]]; then
 		scp -i $keyFile $jarFile "${username}@${master}:${remoteDir}"
 	fi
@@ -52,7 +52,7 @@ done
 master="${masters[${num}]}"
 master=${master%$'\n'}
 scp -i $keyFile "bin/build.sh" "${username}@${master}:${remoteDir}"
-if [[ "${2}" == "-n" ]];then
+if [[ "${2}" == "-c" || "${2}" == "-n" ]];then
 	scp -i $keyFile -r "config/" "${username}@${master}:${remoteDir}"
 	scp -i $keyFile -r "bin/" "${username}@${master}:${remoteDir}"
 fi

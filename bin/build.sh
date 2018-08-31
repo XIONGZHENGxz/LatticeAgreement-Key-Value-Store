@@ -4,7 +4,7 @@ setup=${1}
 confJpaxos="config/jpaxos_config.txt"
 confOthers="config/config.txt"
 confMaster="config/masters.txt"
-numClients=3
+numClients=5
 
 jarFile="LA.jar"
 remoteDir="~/${username}/latticeAgreement"
@@ -56,10 +56,12 @@ do
 	done
 
 	if [[ "$target" = "jpaxos" ]]; then
-		echo -n "${servers[$numReplica]}" >> "$configFile"
+		echo "${servers[$numReplica]}" >> "$configFile"
 		#echo  "Network=UDP" >> "$configFile"
 		#echo  "BatchSize=8000" >> "$configFile"
-		
+		#echo "BatchSize=20480" >> "$configFile"
+		echo  "CrashModel = CrashStop" >> "$configFile"
+		echo -n "MaxBatchDelay=3" >> "$configFile"
 	else 
 		echo  -n "${servers[$numReplica]}" >> "$configFile"
 	fi

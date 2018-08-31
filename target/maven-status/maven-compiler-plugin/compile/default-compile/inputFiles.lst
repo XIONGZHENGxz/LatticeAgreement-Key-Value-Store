@@ -1,3 +1,4 @@
+/home/xz/ds/xiong/latticeAgreement/evaluation/latticeAgreement/src/main/java/la/common/Message.java
 /home/xz/ds/xiong/latticeAgreement/evaluation/latticeAgreement/src/main/java/la/common/Messager.java
 /home/xz/ds/xiong/latticeAgreement/evaluation/latticeAgreement/src/main/java/la/common/Type.java
 /home/xz/ds/xiong/latticeAgreement/evaluation/latticeAgreement/src/main/java/la/mgla/MglaClient.java
@@ -10,9 +11,11 @@
 /home/xz/ds/xiong/latticeAgreement/evaluation/latticeAgreement/src/main/java/la/common/Op.java
 /home/xz/ds/xiong/latticeAgreement/evaluation/latticeAgreement/src/main/java/la/pgla/GLAAlpha.java
 /home/xz/ds/xiong/latticeAgreement/evaluation/latticeAgreement/src/main/java/la/common/Util.java
+/home/xz/ds/xiong/latticeAgreement/evaluation/latticeAgreement/src/main/java/la/wgla/Executor.java
 /home/xz/ds/xiong/latticeAgreement/evaluation/latticeAgreement/src/main/java/la/wgla/Request.java
 /home/xz/ds/xiong/latticeAgreement/evaluation/latticeAgreement/src/main/java/la/common/Client.java
 /home/xz/ds/xiong/latticeAgreement/evaluation/latticeAgreement/src/main/java/la/network/SocketAcceptor.java
+/home/xz/ds/xiong/latticeAgreement/evaluation/latticeAgreement/src/main/java/la/network/Socket.java
 /home/xz/ds/xiong/latticeAgreement/evaluation/latticeAgreement/src/main/java/la/mgla/Acceptor.java
 /home/xz/ds/xiong/latticeAgreement/evaluation/latticeAgreement/src/main/java/la/common/Request.java
 /home/xz/ds/xiong/latticeAgreement/evaluation/latticeAgreement/src/main/java/la/jpaxos/JpaxosServer.java
@@ -31,3 +34,4 @@
 /home/xz/ds/xiong/latticeAgreement/evaluation/latticeAgreement/src/main/java/la/common/ClientListener.java
 /home/xz/ds/xiong/latticeAgreement/evaluation/latticeAgreement/src/main/java/la/wgla/GlaServer.java
 /home/xz/ds/xiong/latticeAgreement/evaluation/latticeAgreement/src/main/java/la/wgla/GLAAlpha.java
+/home/xz/ds/xiong/latticeAgreement/evaluation/latticeAgreement/src/main/java/la/wgla/ReadExecutor.java
