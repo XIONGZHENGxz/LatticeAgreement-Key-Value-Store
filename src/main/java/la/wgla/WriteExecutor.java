@@ -1,6 +1,9 @@
 package la.wgla;
 
 import la.common.Message;
+import la.common.Op;
+import la.common.Response;
+import la.common.Result;
 import la.common.Messager;
 import java.util.Queue;
 import java.util.LinkedList;
@@ -8,13 +11,13 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.Condition;
 
 
-public class ReadExecutor extends Thread {
+public class WriteExecutor extends Thread {
 	public GlaServer server;
-	public Queue<Message> outQueue;
+	public Queue<Op> outQueue;
 	public ReentrantLock lock;
 	public Condition cond;
 
-	public ReadExecutor (GlaServer s) {
+	public WriteExecutor (GlaServer s) {
 		this.server = s;
 		outQueue = new LinkedList<>();
 		lock = new ReentrantLock();
@@ -31,11 +34,11 @@ public class ReadExecutor extends Thread {
 		}
 	}
 
-	public void add(Message msg) {
+	public void add(Op write) {
 		if(outQueue.isEmpty()) {
-			outQueue.offer(msg);
+			outQueue.offer(write);
 			this.wake();
-		} else outQueue.offer(msg);
+		} else outQueue.offer(write);
 	}
 			
 	public void run() {
@@ -45,10 +48,10 @@ public class ReadExecutor extends Thread {
 				while(outQueue.isEmpty()) {
 					cond.await();
 				}
-				Message msg = outQueue.poll();
-				while(msg != null) {
-					Messager.sendMsg(msg.resp, msg.channel);
-					msg = outQueue.poll();
+				Op op  = outQueue.poll();
+				while(op != null) {
+					Messager.sendMsg(new Response(Result.TRUE, ""), server.socketAcceptor.socketMap.get(op.id));
+					op = outQueue.poll();
 				}
 			}
 		} catch (Exception e) { 

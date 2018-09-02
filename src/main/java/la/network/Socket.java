@@ -18,4 +18,8 @@ public class Socket {
 		res = null;
 		want = 0;
 	}
+
+	public String toString() {
+		return socketId + " " + buffer + " " + want + " " + res;
+	}
 }

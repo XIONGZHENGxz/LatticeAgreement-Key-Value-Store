@@ -50,6 +50,7 @@ public class GlaServer extends Server{
 	public SocketAcceptor socketAcceptor;
 	public Map<String, Set<Op>> reads;
 	public ReadExecutor[] readExecutor;
+	public WriteExecutor[] writeExecutor;
 	public Executor executor;
 
 	public Queue<Message> outQueue; 
@@ -79,8 +80,11 @@ public class GlaServer extends Server{
 		econd = elock.newCondition();
 		gla = new GLAAlpha(this);
 		this.readExecutor = new ReadExecutor[Util.writer];
+	//	this.writeExecutor = new WriteExecutor[Util.writer];
 		for(int i = 0; i < Util.writer; i++) {
 			readExecutor[i] = new ReadExecutor(this);
+	//		writeExecutor[i] = new WriteExecutor(this);
+	//		writeExecutor[i].start();
 			readExecutor[i].start();
 		}
 		this.executor = new Executor(this);
@@ -123,6 +127,7 @@ public class GlaServer extends Server{
 		}
 		else if(req.type == Type.PUT || req.type == Type.REMOVE) {
 			this.write(req);
+			//this.gla.receiveWrite(req);
 			return new Response(Result.TRUE, "");
 		}
 		return null;

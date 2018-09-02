@@ -66,10 +66,12 @@ public class SocketProcessor implements Runnable {
 			bytesRead = socket.socket.read(buffer);
 		} catch (Exception e) {
 			this.cancel(key);
+			return;
 		} 
 
 		if(bytesRead == -1) {
 			this.cancel(key);
+			return;
 		}
 
 		buffer.flip();
@@ -78,9 +80,15 @@ public class SocketProcessor implements Runnable {
 				if(buffer.remaining() < 4) {
 					break;
 				}
+
+				//System.out.println(socket);
 				socket.want = buffer.getInt();
-				if(socket.want > 1000) 
-				System.out.println("want >>..." +socket.want);
+				if(socket.want > Util.requestSize) {
+				//System.out.println(socket);
+				//System.out.println(bytesRead +" want >>..." +socket.want);
+				this.cancel(key);
+				return;
+				}
 				res = new byte[socket.want];
 				continue;
 			}
@@ -94,13 +102,16 @@ public class SocketProcessor implements Runnable {
 				try {
 					op = new Op(input);
 				} catch (Exception e) {}
-				res = null;
 				if(op != null) {
 					Thread t = new Thread(new TcpRequestHandler(server, socket, op));
 					es.execute(t);
 				}
+				res = null;
+				break;
 			}
 		}
+		if(res == null) buffer.clear();
+		else 
 		buffer.compact();			
 	}
 

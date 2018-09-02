@@ -32,7 +32,9 @@ la/common/UdpListener.class
 la/wgla/GlaServer.class
 la/wgla/GLAAlpha.class
 la/wgla/ReadExecutor.class
+la/wgla/WriteExecutor.class
 la/common/ClientRequestHandler.class
+la/common/MovingAverage.class
 la/jpaxos/JpaxosServer.class
 la/jpaxos/JpaxosClient.class
 la/pgla/GlaServer.class

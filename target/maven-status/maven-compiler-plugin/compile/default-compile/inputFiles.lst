@@ -30,6 +30,8 @@
 /home/xz/ds/xiong/latticeAgreement/evaluation/latticeAgreement/src/main/java/la/common/TcpListener.java
 /home/xz/ds/xiong/latticeAgreement/evaluation/latticeAgreement/src/main/java/la/crdt/Entry.java
 /home/xz/ds/xiong/latticeAgreement/evaluation/latticeAgreement/src/main/java/la/common/UdpRequestHandler.java
+/home/xz/ds/xiong/latticeAgreement/evaluation/latticeAgreement/src/main/java/la/common/MovingAverage.java
+/home/xz/ds/xiong/latticeAgreement/evaluation/latticeAgreement/src/main/java/la/wgla/WriteExecutor.java
 /home/xz/ds/xiong/latticeAgreement/evaluation/latticeAgreement/src/main/java/la/common/TcpRequestHandler.java
 /home/xz/ds/xiong/latticeAgreement/evaluation/latticeAgreement/src/main/java/la/common/ClientListener.java
 /home/xz/ds/xiong/latticeAgreement/evaluation/latticeAgreement/src/main/java/la/wgla/GlaServer.java

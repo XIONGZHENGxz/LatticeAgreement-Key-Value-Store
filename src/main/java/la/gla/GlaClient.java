@@ -116,7 +116,7 @@ class GlaClient extends Client {
 		long start = Util.getCurrTime();
 		try {
 			es.shutdown();
-			ok = es.awaitTermination(2, TimeUnit.MINUTES);
+			ok = es.awaitTermination(4, TimeUnit.MINUTES);
 		} catch(Exception e) {}
 
 		if(!ok) System.out.println("incomplete simulation....");

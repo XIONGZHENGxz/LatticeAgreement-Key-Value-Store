@@ -2,6 +2,7 @@ package la.wgla;
 
 import java.io.Serializable;
 import java.util.Set;
+import java.util.HashSet;
 
 import la.common.Op;
 
@@ -15,6 +16,7 @@ public class Request implements Serializable{
 	public int round;
 	public int seq;
 	public int me;
+	public Set<Integer> received;
 
 	public Request() {}
 
@@ -28,9 +30,11 @@ public class Request implements Serializable{
 		this.writes = writes;
 	}
 	
-	public Request(String type, Set<Op> writes, int r, int s, int me) {
+	public Request(String type, Set<Integer> all, Set<Op> writes, Set<Op> reads, int r, int s, int me) {
 		this.type = type;
 		this.writes = writes;
+		this.received = all;
+		this.reads = reads;
 		this.seq = s;
 		this.me = me;
 		this.round = r;

@@ -28,8 +28,17 @@ public class Client extends Thread{
 	public CyclicBarrier gate;
 	public int num_prop;
 	public double latency;
-	//public Socket socket;
-	public SocketChannel socket;
+	public int TIMEOUT;
+	public int replica;
+	private static final int TO_MULTIPLIER = 3;
+	private static final int INITIAL_TIMEOUT = 3000 / TO_MULTIPLIER;
+	/* Maximum time to wait for an answer from the replica before reconnect */
+	public static final int MAX_TIMEOUT = 5000;
+	/* Minimum time to wait for an answer from the replica before reconnect */
+	public static final int MIN_TIMEOUT = 500;
+	private final MovingAverage average = new MovingAverage(0.2, INITIAL_TIMEOUT);
+	public Socket socket;
+	//public SocketChannel socket;
 	public int id;
 	public DataOutputStream output;
 	public DataInputStream input;
@@ -39,6 +48,7 @@ public class Client extends Thread{
 	public Client(List<String> ops, String config, CyclicBarrier gate, int num_prop, int id) { 
 		this.servers = new ArrayList<>();
 		this.ports = new ArrayList<>();
+		this.TIMEOUT = Util.TIMEOUT;
 		Util.readConf(servers, ports, config);
 		this.ops = ops;
 		this.num_prop = num_prop;
@@ -57,39 +67,62 @@ public class Client extends Thread{
 		int s = Util.decideServer(this.servers.size());
 		Messager.sendMsg(req, this.servers.get(s), this.ports.get(s));
 	}
+/** Modifies socket timeout basing on previous reply times */
+    private void updateTimeout() throws Exception {
+        TIMEOUT = (int) (TO_MULTIPLIER * average.get());
+        TIMEOUT = Math.min(TIMEOUT, MAX_TIMEOUT);
+        TIMEOUT = Math.max(TIMEOUT, MIN_TIMEOUT);
+		socket.setSoTimeout(TIMEOUT);
+    }
 
 	public boolean execute (Op op) {
-		//System.out.println(this.id + " executing..." +op);
+		long s = System.currentTimeMillis();
 		ByteBuffer buffer = op.toBytes();
 		buffer.flip();
 		try {
+			/*
 			socket.write(buffer);
 			ByteBuffer bb = ByteBuffer.allocate(48);
 			int bytes = socket.read(bb);
 			long start = Util.getCurrTime();
-			while(bytes < 1 && Util.getCurrTime() - start < Util.TIMEOUT) {
+			while(bytes < 4 && Util.getCurrTime() - start < this.TIMEOUT) {
 				try {
 					Thread.sleep(5);
 				} catch (Exception e) {}
 				bytes = socket.read(bb);
 			}
-			if(bytes < 1) return false;
+			if(bytes < 1) {
+				increaseTimeout();
+				return false;
+			}
 			bb.flip();
 			Result res = Result.values()[bb.getInt()];
+			long time = System.currentTimeMillis() - s;
+            average.add(time);
+			updateTimeout();
 			if(res == Result.TRUE) return true;
-			/*
-			byte[] req = buffer.array();
-			output.write(req);
-			output.flush();
-			socket.setSoTimeout(Util.TIMEOUT);
-			Result res = Result.values()[input.readInt()];
-			if(res == Result.TRUE) return true;
-			*/
-			//System.out.println("get input ..." + res);
+			 */
+			   byte[] req = buffer.array();
+			   output.write(req);
+			   output.flush();
+			   //socket.setSoTimeout((int)TIMEOUT);
+			   Response reply = new Response(input);
+			long time = System.currentTimeMillis() - s;
+            average.add(time);
+			updateTimeout();
+			   if(reply.ok == Result.TRUE) return true;
 		} catch (Exception e) {
+			//e.printStackTrace();
+			increaseTimeout();
 			return false;
 		}
+		increaseTimeout();
 		return false;
+	}
+
+	public void increaseTimeout() {
+		TIMEOUT = (int) (TO_MULTIPLIER * average.get());
+		TIMEOUT = Math.min(TIMEOUT, MAX_TIMEOUT);
 	}
 
 	public void clean() {
@@ -101,10 +134,11 @@ public class Client extends Thread{
 		}
 	}
 
-	public boolean connect(int replica) {
+	public boolean connect() {
 		this.clean();
 		try {
 			InetSocketAddress addr = new InetSocketAddress(this.servers.get(replica), this.ports.get(replica));
+			/*
 			socket = SocketChannel.open();
 			socket.connect(addr);
 			long start = Util.getCurrTime();
@@ -114,27 +148,28 @@ public class Client extends Thread{
 			}
 
 			socket.configureBlocking(false);
-			/*
-			socket = new Socket();
-			socket.connect(addr, Util.CONNECT_TIMEOUT);
-			socket.setSoTimeout(Util.TIMEOUT);
-			output = new DataOutputStream(socket.getOutputStream());
-			input = new DataInputStream(socket.getInputStream());
-			*/
+			 */
+			   socket = new Socket();
+			   socket.connect(addr, TIMEOUT);
+			   socket.setSoTimeout(TIMEOUT);
+			   output = new DataOutputStream(socket.getOutputStream());
+			   input = new DataInputStream(socket.getInputStream());
 			//output = new DataOutputStream(socket.getOutputStream());
 			//input = new DataInputStream(socket.getInputStream());
 		} catch (Exception e) {
+			//e.printStackTrace();
 			return false;
 		}
 		return true;
 	}
 
 	public boolean reconnect() {
+		/*
 		try {
 			Thread.sleep(rand.nextInt(Util.TIMEOUT));
 		} catch (Exception e) {}
-		int replica = rand.nextInt(this.servers.size());
-		return this.connect(replica);
+		*/
+		return this.connect();
 	}
 
 	@Override
@@ -143,8 +178,8 @@ public class Client extends Thread{
 				this.gate.await();
 			} catch (Exception e) {}
 
-			int replica = this.id % this.num_prop;
-			boolean connected = this.connect(replica);
+			replica = this.id % this.num_prop;
+			boolean connected = this.connect();
 			while(!connected) {
 				connected = this.reconnect();
 			}
@@ -161,8 +196,8 @@ public class Client extends Thread{
 					ope = new Op(Type.PUT, item[1], item[2]);
 				else ope = new Op(Type.GET, item[1], "");
 
-				while(!this.execute(ope)) {
-					int next = (replica + 1 + rand.nextInt(this.servers.size() - 1)) % this.servers.size();
+				while(!this.execute(ope) && Util.getCurrTime() - start < timeout) {
+					replica = (replica + 1 + rand.nextInt(this.servers.size() - 1)) % this.servers.size();
 					this.reconnect();
 				}
 				this.count ++;
@@ -183,7 +218,8 @@ public class Client extends Thread{
 				ope = new Op(Type.PUT, item[1], item[2]);
 			else ope = new Op(Type.GET, item[1], "");
 
-			while(!this.execute(ope)) {
+			while(!this.execute(ope) && Util.getCurrTime() - start < timeout) {
+				replica = (replica + 1 + rand.nextInt(this.servers.size() - 1)) % this.servers.size();
 				this.reconnect();
 			}
 		}

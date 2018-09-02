@@ -79,7 +79,6 @@ do
 		echo -n "MaxBatchDelay=7" >> "$configFile"
 		else
 		echo -n "MaxBatchDelay=8" >> "$configFile"
-		fi
 	else 
 		echo  -n "${servers[$numReplica]}" >> "$configFile"
 	fi
@@ -100,6 +99,9 @@ do
 		scp -i $keyFile "bin/kill.sh" "${username}@${master}:${remoteDir}"
 	done
 	
+	else 
+		echo  -n "${servers[$numReplica]}" >> "$configFile"
+	fi
 
 	for i in `seq 0 ${clientEnd}`; do 
 		master="${masters[$i]}"
