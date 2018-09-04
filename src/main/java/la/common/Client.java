@@ -30,7 +30,7 @@ public class Client extends Thread{
 	public double latency;
 	public int TIMEOUT;
 	public int replica;
-	private static final int TO_MULTIPLIER = 3;
+	private static final int TO_MULTIPLIER = 2;
 	private static final int INITIAL_TIMEOUT = 3000 / TO_MULTIPLIER;
 	/* Maximum time to wait for an answer from the replica before reconnect */
 	public static final int MAX_TIMEOUT = 5000;
@@ -105,7 +105,7 @@ public class Client extends Thread{
 			   byte[] req = buffer.array();
 			   output.write(req);
 			   output.flush();
-			   //socket.setSoTimeout((int)TIMEOUT);
+			   //System.out.println(this.id + " wrote...");
 			   Response reply = new Response(input);
 			long time = System.currentTimeMillis() - s;
             average.add(time);
@@ -164,6 +164,7 @@ public class Client extends Thread{
 	}
 
 	public boolean reconnect() {
+		//System.out.println("reconnecting...");
 		/*
 		try {
 			Thread.sleep(rand.nextInt(Util.TIMEOUT));
@@ -176,17 +177,20 @@ public class Client extends Thread{
 		public void run() {
 			try {
 				this.gate.await();
-			} catch (Exception e) {}
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
 
 			replica = this.id % this.num_prop;
 			boolean connected = this.connect();
 			while(!connected) {
+				replica = (replica + 1 + rand.nextInt(this.servers.size() - 1)) % this.servers.size();
 				connected = this.reconnect();
 			}
 			long timeout = Util.testTime;
 			this.cut(Util.cutTime);
-			int i = 0;
 			long start = Util.getCurrTime();
+			int i = 0;
 			while(Util.getCurrTime() - start < timeout) {
 				if(i >= this.ops.size()) i = 0;
 				String op = this.ops.get(i ++);

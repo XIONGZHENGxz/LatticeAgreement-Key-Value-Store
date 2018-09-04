@@ -41,6 +41,7 @@ public class Messager {
 			DatagramPacket packet  = new DatagramPacket(data, data.length, InetAddress.getByName(host), port);
 			socket.send(packet);
 			//System.out.println("sent ");
+			//System.out.println("message size ..." + data.length);
 		} catch(Exception e) {
 			e.printStackTrace();
 		} finally {

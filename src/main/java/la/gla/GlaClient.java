@@ -13,6 +13,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.CyclicBarrier;
 import java.text.DecimalFormat;
 
+import java.io.FileWriter;
+import java.io.BufferedWriter;
+import java.io.PrintWriter;
 import la.common.Client;
 import la.common.Util;
 import la.common.Client;
@@ -26,60 +29,60 @@ class GlaClient extends Client {
 	public GlaClient(List<String> ops, String config, CyclicBarrier gate, int num_prop, int id) { 
 		super(ops, config, gate, num_prop,id);
 	}
-	
+
 	/*
-	public boolean checkComp() {
-		Map<Integer, Set<Op>>[] LVs = new Map[this.servers.size()];
-		Request op = new Request("", new Op("checkComp"));
-		int correct = -1;
+	   public boolean checkComp() {
+	   Map<Integer, Set<Op>>[] LVs = new Map[this.servers.size()];
+	   Request op = new Request("", new Op("checkComp"));
+	   int correct = -1;
 
-		for(int i = 0; i < this.servers.size(); i++) {
-			Response resp = (Response) Messager.sendAndWaitReply(op, this.servers.get(i), this.ports.get(i));
-			if(resp != null && resp.ok) {
-				correct = i;
-				LVs[i] = resp.lv;
-			}
-		}
-		Set<Integer> keys = LVs[correct].keySet();
+	   for(int i = 0; i < this.servers.size(); i++) {
+	   Response resp = (Response) Messager.sendAndWaitReply(op, this.servers.get(i), this.ports.get(i));
+	   if(resp != null && resp.ok) {
+	   correct = i;
+	   LVs[i] = resp.lv;
+	   }
+	   }
+	   Set<Integer> keys = LVs[correct].keySet();
 
-		Map<Integer, Set<Op>>[] values = new Map[this.servers.size()];
-		for(int i = 0; i < this.servers.size(); i++) {
-			values[i] = new HashMap<>();
-		}
+	   Map<Integer, Set<Op>>[] values = new Map[this.servers.size()];
+	   for(int i = 0; i < this.servers.size(); i++) {
+	   values[i] = new HashMap<>();
+	   }
 
-		for(int seq = 0 ; LVs[correct].containsKey(seq); seq ++) {
-			for(int i = 0; i < this.servers.size(); i++) {
-				if(LVs[i] == null) continue;
-				if(seq == 0) values[i].put(seq, LVs[i].get(seq));
-				else {
-					Set<Op> tmp = new HashSet<>(values[i].get(seq - 1));
-					if(LVs[i].get(seq) != null)
-					tmp.addAll(LVs[i].get(seq));
-					values[i].put(seq, tmp);
-				}
-			}
-		}
+	   for(int seq = 0 ; LVs[correct].containsKey(seq); seq ++) {
+	   for(int i = 0; i < this.servers.size(); i++) {
+	   if(LVs[i] == null) continue;
+	   if(seq == 0) values[i].put(seq, LVs[i].get(seq));
+	   else {
+	   Set<Op> tmp = new HashSet<>(values[i].get(seq - 1));
+	   if(LVs[i].get(seq) != null)
+	   tmp.addAll(LVs[i].get(seq));
+	   values[i].put(seq, tmp);
+	   }
+	   }
+	   }
 
-		for(int seq = 0; LVs[correct].containsKey(seq); seq ++) {
-			for(int i = 0; i < this.servers.size(); i++) {
-				if(LVs[i] == null) continue;
-				for(int j = i + 1; j < this.servers.size(); j++) {
-					if(LVs[j] == null) continue;
-					if(!comparable(values[i].get(seq), values[j].get(seq))) {
-						System.out.println(i + " and " + j + " incomparable "+ seq+ " \n" + LVs[i].get(seq)+ "\n" + LVs[j].get(seq));
-						Set<Op> tmp1 = new HashSet<>(values[i].get(seq));
+	   for(int seq = 0; LVs[correct].containsKey(seq); seq ++) {
+	   for(int i = 0; i < this.servers.size(); i++) {
+	   if(LVs[i] == null) continue;
+	   for(int j = i + 1; j < this.servers.size(); j++) {
+	   if(LVs[j] == null) continue;
+	   if(!comparable(values[i].get(seq), values[j].get(seq))) {
+	   System.out.println(i + " and " + j + " incomparable "+ seq+ " \n" + LVs[i].get(seq)+ "\n" + LVs[j].get(seq));
+	   Set<Op> tmp1 = new HashSet<>(values[i].get(seq));
 
-						values[i].get(seq).removeAll(values[j].get(seq));
-						values[j].get(seq).removeAll(tmp1);
-						System.out.println("\n" + values[i].get(seq)+ "\n" + values[j].get(seq));
-						return false;
-					}
-				}
-			}
-		}
-		return true;
-	}
-	*/
+	   values[i].get(seq).removeAll(values[j].get(seq));
+	   values[j].get(seq).removeAll(tmp1);
+	   System.out.println("\n" + values[i].get(seq)+ "\n" + values[j].get(seq));
+	   return false;
+	   }
+	   }
+	   }
+	   }
+	   return true;
+	   }
+	 */
 
 	public boolean comparable(Set<Op> s1, Set<Op> s2) {
 		return s1.containsAll(s2) || s2.containsAll(s1);
@@ -116,10 +119,11 @@ class GlaClient extends Client {
 		long start = Util.getCurrTime();
 		try {
 			es.shutdown();
-			ok = es.awaitTermination(4, TimeUnit.MINUTES);
+			//System.out.println(id + " shutdown...");
+			ok = es.awaitTermination(1, TimeUnit.MINUTES);
 		} catch(Exception e) {}
 
-		if(!ok) System.out.println("incomplete simulation....");
+		//	if(!ok) System.out.println(id + " incomplete simulation....");
 
 		DecimalFormat df = new DecimalFormat("#.00"); 
 		double sum = 0.0;
@@ -130,6 +134,7 @@ class GlaClient extends Client {
 		}
 		double avgLatency = sum / num_threads;
 		double th = (double) num_clients * 1000 * sum_count / (double) Util.testTime;
+		//write("wgla," + clients[0].num_prop + "," + num_threads + "," +num_ops + "," + ratio + "," + coef + "," + th + "," + avgLatency + "\n");
 		System.out.println(df.format(th));
 		System.out.println(df.format(avgLatency));
 
@@ -140,6 +145,16 @@ class GlaClient extends Client {
 			} catch (Exception e) {}
 			//boolean comp = clients[0].checkComp();
 			//System.out.println("comparable: "+ comp);
+		}
+	}
+	public static void write(String str) {
+		try {
+			FileWriter fw = new FileWriter("results.csv", true);
+			BufferedWriter bw = new BufferedWriter(fw);
+			bw.write(str);
+			bw.flush();
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
 	}
 }

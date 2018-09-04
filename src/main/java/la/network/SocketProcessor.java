@@ -85,7 +85,7 @@ public class SocketProcessor implements Runnable {
 				socket.want = buffer.getInt();
 				if(socket.want > Util.requestSize) {
 				//System.out.println(socket);
-				//System.out.println(bytesRead +" want >>..." +socket.want);
+				System.out.println(bytesRead +" want >>..." +socket.want);
 				this.cancel(key);
 				return;
 				}

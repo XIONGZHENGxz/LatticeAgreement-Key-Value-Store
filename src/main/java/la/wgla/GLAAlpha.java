@@ -110,6 +110,7 @@ public class GLAAlpha extends Server implements Runnable {
 	public void start() {
 		Set<Op> writes = new HashSet<>();
 		Set<Op> reads = new HashSet<>();
+		//Set<Op> newVals = new HashSet<>();
 		this.acceptVal.removeAll(this.LV.get(this.seq - 1));
 		//this.oldAccept = ConcurrentHashMap.newKeySet();
 		for(Op o : this.acceptVal) {
@@ -118,9 +119,10 @@ public class GLAAlpha extends Server implements Runnable {
 		}
 		/* add writes to propose, accept only has writes */	
 		for(Op o : this.writeBuffVal) {
+			if(writes.size() > Util.threshold / this.n) break;
 			this.acceptVal.add(o);
 			writes.add(o);
-			if(writes.size() > Util.threshold / this.n) break;
+		//	newVals.add(o);
 		}
 		/* reads */
 		for(Op o : this.readBuffVal) {
@@ -205,6 +207,12 @@ public class GLAAlpha extends Server implements Runnable {
 
 			if(Util.DEBUG) System.out.println(this.me + " complete seq " + this.seq + " " + writes + " " + reads);
 			this.acceptVal.removeAll(this.LV.get(this.seq - 1));
+			/*
+			synchronized (this.acceptVal) {
+				this.acceptVal = ConcurrentHashMap.newKeySet();
+			}
+			this.acceptVal.addAll(newVals);
+			*/
 			//this.acceptVal.removeAll(this.oldAccept);
 			//	if(receivedAll) 
 			//		this.acceptVal.removeAll(this.LV.get(this.seq));

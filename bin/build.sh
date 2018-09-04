@@ -15,7 +15,7 @@ username="ubuntu"
 dir=`pwd`
 keyFile="xiong-key-pair.pem"
 source "$dir/bin/read.sh"
-
+echo "StrictHostKeyChecking no" >> /etc/ssh/ssh_config
 rm -f "results.csv"
 declare -a masters 
 readarray masters < $confMaster
@@ -100,23 +100,6 @@ do
 		scp -i $keyFile "bin/kill.sh" "${username}@${master}:${remoteDir}"
 	done
 	
-
-	for i in `seq 0 ${clientEnd}`; do 
-		master="${masters[$i]}"
-		master=${master%$'\n'}
-		ssh -i $keyFile "${username}@${master}" "cd $remoteDir ; ./kill.sh; rm -f $configFile"  
-	done 
-
-
-	for i in `seq 0 ${clientEnd}`; do 
-		master="${masters[$i]}"
-		master=${master%$'\n'}
-		ssh -i $keyFile "${username}@${master}" 'mkdir -p' $remoteDir
-		ssh -i $keyFile "${username}@${master}" 'mkdir -p' "${remoteDir}"
-		scp -i $keyFile "$configFile" "${username}@${master}:${remoteDir}"
-		scp -i $keyFile "bin/kill.sh" "${username}@${master}:${remoteDir}"
-	done
-	
 	for i in `seq 0 ${numReplica}`; do 
 		master="${masters[$i]}"
 		master=${master%$'\n'}
@@ -161,7 +144,7 @@ do
 	if [ $target == "crdt" ]; then 
 		res=`java -cp $jarFile la.crdt.CrdtClient $numOps $max $valLen $distribution $readsRatio t $configFile $numThreads $numProp $numClients` 
 	elif [ "$target" == "gla" ] || [ "$target" == "pgla" ] || [ "$target" == "wgla" ]; then 
-		res=`java -cp $jarFile la.gla.GlaClient $numOps $max $valLen $distribution $readsRatio $configFile $numThreads $numProp $numClients $clientId` 
+		res=`timeout 60 java -cp $jarFile la.gla.GlaClient $numOps $max $valLen $distribution $readsRatio $configFile $numThreads $numProp $numClients $clientId` 
 	elif [ "$target" == "jpaxos" ]; then 
 		res=`java -cp $jarFile la.jpaxos.JpaxosClient $numOps $max $valLen $distribution $readsRatio $configFile $numThreads $numClients` 
 	elif [ "$target" == "mgla" ]; then 
@@ -169,9 +152,12 @@ do
 	else
 		echo "invalid target"
 	fi
-	
+	echo "completed..."	
 	echo "result: $res"
 	
+	if [[ -z "$res" ]]; then
+		continue
+	fi
 	#shutdown servers
 	for i in `seq 0 ${num}`; do 
 		master="${masters[$i]}"
@@ -191,9 +177,9 @@ do
 	echo $latency
 
 	#write results to file
-	if [ ! -f "results.csv" ]; then 
-		echo "target,numReplicas,numThreads,numOps,readsRatio,distribution,throughput,latency" >> "results.csv"
-	fi
+	#if [ ! -f "results.csv" ]; then 
+		#echo "target,numReplicas,numThreads,numOps,readsRatio,distribution,throughput,latency" >> "results.csv"
+	#fi
 	echo "${target},${numReplicas},${numThreads},${numOps},${readsRatio},${distribution},${throughput},${latency}" >> "results.csv"
 done
 

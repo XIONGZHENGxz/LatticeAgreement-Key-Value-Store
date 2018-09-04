@@ -69,6 +69,9 @@ public class SocketAcceptor extends Thread {
 					sp.add(socket);
 				}
 				socketId ++;
+				try {
+					Thread.sleep(Util.wait);
+				} catch (Exception e) {}
 			} catch(IOException e){
 				e.printStackTrace();
 			}

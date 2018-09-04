@@ -1,5 +1,4 @@
 target,numReplicas,numThreads,numOps,readsRatio,distribution,throughput,latency
-wgla,3,5,1000,0.5,-1.0,2787.80,5.38
 wgla,3,5,1000,0.5,-1.0,2802.30,5.35
 wgla,3,5,1000,0.5,-1.0,2737.00,5.50
 wgla,3,5,1000,0.5,-1.0,2824.70,5.31

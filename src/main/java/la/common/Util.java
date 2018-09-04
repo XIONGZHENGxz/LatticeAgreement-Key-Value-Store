@@ -21,11 +21,11 @@ public class Util {
 	public static int syncFreq = 5000;
 	public static int loop = 1000;
 	public static int freq = 7;
-	public static int threshold = 1500;
+	public static int threshold = 700;
 	public static int requestSize = 48;
 	public static int threadLimit = 100;
-	public static int cutTime = 10 * 1000;
-	public static int testTime = 30 * 1000;
+	public static int cutTime = 15 * 1000;
+	public static int testTime = 20 * 1000;
 	public static int processors = 5;
 	public static int writer = 10;
 	public static int batchSize = 0;
