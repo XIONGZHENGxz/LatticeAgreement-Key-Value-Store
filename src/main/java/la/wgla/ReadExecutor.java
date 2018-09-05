@@ -10,7 +10,7 @@ import java.util.concurrent.locks.Condition;
 
 public class ReadExecutor extends Thread {
 	public GlaServer server;
-	public Queue<Message> outQueue;
+	public volatile Queue<Message> outQueue;
 	public ReentrantLock lock;
 	public Condition cond;
 

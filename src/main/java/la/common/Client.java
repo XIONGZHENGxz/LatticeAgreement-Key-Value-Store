@@ -30,7 +30,7 @@ public class Client extends Thread{
 	public double latency;
 	public int TIMEOUT;
 	public int replica;
-	private static final int TO_MULTIPLIER = 2;
+	private static final int TO_MULTIPLIER = 3;
 	private static final int INITIAL_TIMEOUT = 3000 / TO_MULTIPLIER;
 	/* Maximum time to wait for an answer from the replica before reconnect */
 	public static final int MAX_TIMEOUT = 5000;
@@ -121,8 +121,9 @@ public class Client extends Thread{
 	}
 
 	public void increaseTimeout() {
-		TIMEOUT = (int) (TO_MULTIPLIER * average.get());
-		TIMEOUT = Math.min(TIMEOUT, MAX_TIMEOUT);
+		int timeout = (int) (TO_MULTIPLIER * average.get());
+		timeout = Math.min(timeout, MAX_TIMEOUT);
+		average.add(timeout);
 	}
 
 	public void clean() {
@@ -151,7 +152,7 @@ public class Client extends Thread{
 			 */
 			   socket = new Socket();
 			   socket.connect(addr, TIMEOUT);
-			   socket.setSoTimeout(TIMEOUT);
+			   this.updateTimeout();
 			   output = new DataOutputStream(socket.getOutputStream());
 			   input = new DataInputStream(socket.getInputStream());
 			//output = new DataOutputStream(socket.getOutputStream());
@@ -165,11 +166,9 @@ public class Client extends Thread{
 
 	public boolean reconnect() {
 		//System.out.println("reconnecting...");
-		/*
 		try {
-			Thread.sleep(rand.nextInt(Util.TIMEOUT));
+			Thread.sleep(Util.TIMEOUT / 3 + rand.nextInt(2 * Util.TIMEOUT / 3));
 		} catch (Exception e) {}
-		*/
 		return this.connect();
 	}
 

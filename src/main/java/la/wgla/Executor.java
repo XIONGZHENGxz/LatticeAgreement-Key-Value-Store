@@ -16,6 +16,7 @@ public class Executor extends Thread {
 				server.apply(seq);
 			}
 		} catch (Exception e) {
+			e.printStackTrace();
 		} finally {
 			server.elock.unlock();
 		}

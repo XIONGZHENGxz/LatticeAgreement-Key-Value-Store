@@ -79,16 +79,15 @@ public class GlaServer extends Server{
 		rcond = rlock.newCondition();
 		econd = elock.newCondition();
 		gla = new GLAAlpha(this);
+		/*
 		this.readExecutor = new ReadExecutor[Util.writer];
-	//	this.writeExecutor = new WriteExecutor[Util.writer];
 		for(int i = 0; i < Util.writer; i++) {
 			readExecutor[i] = new ReadExecutor(this);
-	//		writeExecutor[i] = new WriteExecutor(this);
-	//		writeExecutor[i].start();
 			readExecutor[i].start();
 		}
 		this.executor = new Executor(this);
 		this.executor.start();
+		*/
 		this.socketAcceptor.start();
 	}
 
@@ -120,10 +119,13 @@ public class GlaServer extends Server{
 		if(req.type == Type.GET) {
 			String kid = this.me + "" + this.gla.seq;
 			Op noop = new Op(Type.GET, kid, "");
+			/*
 			if(!this.reads.containsKey(kid)) reads.put(kid, new HashSet<Op>());
 			reads.get(kid).add(req);
 			this.gla.receiveRead(noop);
-			return null;
+			*/
+			this.read(noop);
+			return this.get(req.key);
 		}
 		else if(req.type == Type.PUT || req.type == Type.REMOVE) {
 			this.write(req);
@@ -131,6 +133,20 @@ public class GlaServer extends Server{
 			return new Response(Result.TRUE, "");
 		}
 		return null;
+	}
+
+
+	public void read(Op op) {
+		try {
+			this.rlock.lock();
+			this.gla.receiveWrite(op);
+			while(this.gla.writeBuffVal.contains(op)) {
+				this.rcond.await();
+			}
+		} catch (Exception e) {
+		} finally {
+			this.rlock.unlock();
+		}
 	}
 
 	public void write(Op op) {
@@ -159,13 +175,13 @@ public class GlaServer extends Server{
 	
 	public void apply(int seq) {
 		for(int i = this.exeInd + 1; i <= seq; i++) {
+			System.out.println(this.me + " apply...." + i);
 			for(Op o : this.gla.learntWrites(i)) {
 				Set<Op> prev = this.gla.learntWrites(i - 1);
 				if(prev.contains(o)) continue;
 				this.put(o.key, o.val);
-				//this.log.add(o);
 			}
-
+			/*
 			for (Op o : this.gla.learntReads(i)) {
 				if(!this.reads.containsKey(o.key)) continue;
 				for(Op read : this.reads.get(o.key)) {
@@ -174,6 +190,7 @@ public class GlaServer extends Server{
 					readExecutor[ind].add(new Message(resp, socketAcceptor.socketMap.get(read.id)));
 				}
 			}
+			*/
 		}
 		this.exeInd = seq;
 	}

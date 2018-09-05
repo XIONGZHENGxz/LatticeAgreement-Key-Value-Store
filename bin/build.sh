@@ -106,9 +106,9 @@ do
 		echo $master
 		if [ $target == "crdt" ]; then 
 			freq="${expArr[9]}"
-			ssh -i $keyFile "${username}@${master}" "cd $remoteDir ;  java -cp LA.jar la.crdt.CrdtServer $i 1000 $freq $configFile" &
+			ssh -i $keyFile "${username}@${master}" "cd $remoteDir ;  java -cp LA.jar la.crdt.CrdtServer $i 1000 $freq $configFile" & 
 		elif [ "$target" == "gla" ]; then 
-			ssh -i $keyFile "${username}@${master}" "cd $remoteDir ;  java -cp LA.jar la.gla.GlaServer $i $failure 1000 $configFile" &
+			ssh -i $keyFile "${username}@${master}" "cd $remoteDir ;  java -cp LA.jar la.gla.GlaServer $i $failure 1000 $configFile" & 
 		elif [ "$target" == "jpaxos" ]; then 
 			echo "${username}@${master}" 
 			ssh -i $keyFile "${username}@${master}" "cd $remoteDir ;  java -cp LA.jar la.jpaxos.JpaxosServer $i 1000 $configFile" &
@@ -144,7 +144,7 @@ do
 	if [ $target == "crdt" ]; then 
 		res=`java -cp $jarFile la.crdt.CrdtClient $numOps $max $valLen $distribution $readsRatio t $configFile $numThreads $numProp $numClients` 
 	elif [ "$target" == "gla" ] || [ "$target" == "pgla" ] || [ "$target" == "wgla" ]; then 
-		res=`timeout 60 java -cp $jarFile la.gla.GlaClient $numOps $max $valLen $distribution $readsRatio $configFile $numThreads $numProp $numClients $clientId` 
+		res=`timeout 80 java -cp $jarFile la.gla.GlaClient $numOps $max $valLen $distribution $readsRatio $configFile $numThreads $numProp $numClients $clientId` 
 	elif [ "$target" == "jpaxos" ]; then 
 		res=`java -cp $jarFile la.jpaxos.JpaxosClient $numOps $max $valLen $distribution $readsRatio $configFile $numThreads $numClients` 
 	elif [ "$target" == "mgla" ]; then 
