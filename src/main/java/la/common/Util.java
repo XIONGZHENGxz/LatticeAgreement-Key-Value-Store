@@ -21,13 +21,13 @@ public class Util {
 	public static int syncFreq = 5000;
 	public static int loop = 1000;
 	public static int freq = 7;
-	public static int threshold = 500;
+	public static int threshold = 1000;
 	public static int requestSize = 48;
 	public static int threadLimit = 100;
 	public static int cutTime = 15 * 1000;
 	public static int testTime = 20 * 1000;
 	public static int processors = 3;
-	public static int writer = 15;
+	public static int writer = 10;
 	public static int batchSize = 0;
 	public static double fp = 0.00;
 	public static boolean DEBUG = false;
@@ -48,7 +48,7 @@ public class Util {
 	public static final int fail = 10000;
 	public static final int wait = 0;
 	public static final int sigTimeout = 5;
-	public static final int gap = 2;
+	public static final int gap = 1;
 
 	public static long getCurrTime() {
 		return System.currentTimeMillis();

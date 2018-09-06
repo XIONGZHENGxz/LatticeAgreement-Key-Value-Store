@@ -131,6 +131,9 @@ public class GlaServer extends Server{
 			this.write(req);
 			//this.gla.receiveWrite(req);
 			return new Response(Result.TRUE, "");
+		} else {
+			//this.fail = true;
+			this.close();
 		}
 		return null;
 	}

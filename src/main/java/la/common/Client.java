@@ -190,6 +190,7 @@ public class Client extends Thread{
 			this.cut(Util.cutTime);
 			long start = Util.getCurrTime();
 			int i = 0;
+			//long second = 1000;
 			while(Util.getCurrTime() - start < timeout) {
 				if(i >= this.ops.size()) i = 0;
 				String op = this.ops.get(i ++);

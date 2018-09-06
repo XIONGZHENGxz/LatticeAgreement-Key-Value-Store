@@ -2,3 +2,5 @@
 #system, number of replicas, number of threads, number of operations for each client thread, reads ratio, distribution, f(optional)
 #convergence time
 wgla:3:50:1000:0.5:-1.0:1:n:3
+wgla:5:50:1000:0.5:-1.0:2:n:5
+wgla:7:50:1000:0.5:-1.0:3:n:7
