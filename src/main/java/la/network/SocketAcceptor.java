@@ -24,7 +24,7 @@ import la.common.Server;
 public class SocketAcceptor extends Thread {
 
 	private int tcpPort = 0;
-	private ServerSocketChannel serverSocket = null;
+	public ServerSocketChannel serverSocket = null;
 	private int socketId = 0;
 	private ExecutorService es;
 	private List<SocketProcessor> sps;

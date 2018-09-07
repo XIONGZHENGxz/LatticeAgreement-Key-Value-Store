@@ -4,7 +4,7 @@ setup=${1}
 confJpaxos="config/jpaxos_config.txt"
 confOthers="config/config.txt"
 confMaster="config/masters.txt"
-numClients=5
+numClients=2
 
 jarFile="LA.jar"
 remoteDir="~/${username}/latticeAgreement"
@@ -132,7 +132,7 @@ do
 	elif [ "$target" == "gla" ] || [ "$target" == "pgla" ] || [ "$target" == "wgla" ]; then 
 		ssh -i $keyFile "${username}@${master}" "cd $remoteDir ; java -cp $jarFile la.gla.GlaClient $numOps $max $valLen $distribution $readsRatio $configFile $numThreads $numProp $numClients $clientId" &
 	elif [ "$target" == "jpaxos" ]; then 
-		ssh -i $keyFile "${username}@${master}" "cd $remoteDir ; java -cp $jarFile la.jpaxos.JpaxosClient $numOps $max $valLen $distribution $readsRatio $configFile $numThreads $numClients" & 
+		ssh -i $keyFile "${username}@${master}" "cd $remoteDir ; java -cp $jarFile la.jpaxos.JpaxosClient $numOps $max $valLen $distribution $readsRatio $configFile $numThreads $numClients $clientId" & 
 	elif [ "$target" == "mgla" ]; then 
 		ssh -i $keyFile "${username}@${master}" "cd $remoteDir ; java -cp $jarFile la.mgla.MglaClient $numOps $max $valLen $distribution $readsRatio $configFile $numThreads $numProp" &
 	else
@@ -146,7 +146,7 @@ do
 	elif [ "$target" == "gla" ] || [ "$target" == "pgla" ] || [ "$target" == "wgla" ]; then 
 		res=`timeout 80 java -cp $jarFile la.gla.GlaClient $numOps $max $valLen $distribution $readsRatio $configFile $numThreads $numProp $numClients $clientId` 
 	elif [ "$target" == "jpaxos" ]; then 
-		res=`java -cp $jarFile la.jpaxos.JpaxosClient $numOps $max $valLen $distribution $readsRatio $configFile $numThreads $numClients` 
+		res=`java -cp $jarFile la.jpaxos.JpaxosClient $numOps $max $valLen $distribution $readsRatio $configFile $numThreads $numClients $clientId` 
 	elif [ "$target" == "mgla" ]; then 
 		res=`java -cp $jarFile la.mgla.MglaClient $numOps $max $valLen $distribution $readsRatio $configFile $numThreads $numProp $numClients`
 	else
@@ -170,16 +170,21 @@ do
 	while read -r line; do
 		arr+=("$line")
 	done <<< "$res"
-	throughput="${arr[0]}"
-	echo $throughput
-	IFS=$'\n' read -ra ret <<< "$res"
-	latency="${arr[1]}"
-	echo $latency
+	
+	i=0
+	while [[ "$i" -le "29" ]]; do
+		throughput="${arr[$i]}"
+		echo $throughput
+		i=$((i + 1))
+		latency="${arr[$i]}"
+		i=$((i + 1))
+		echo $latency
+		echo "${throughput},${latency}" >> "results.csv"
+	done
 
 	#write results to file
 	#if [ ! -f "results.csv" ]; then 
 		#echo "target,numReplicas,numThreads,numOps,readsRatio,distribution,throughput,latency" >> "results.csv"
 	#fi
-	echo "${target},${numReplicas},${numThreads},${numOps},${readsRatio},${distribution},${throughput},${latency}" >> "results.csv"
 done
 

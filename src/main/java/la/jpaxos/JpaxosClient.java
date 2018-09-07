@@ -28,11 +28,17 @@ class JpaxosClient extends Thread{
 	public CyclicBarrier gate;
 	public double latency;
 	public long count;
+	public List<Double> latencies;
+	public List<Long> counts;
+	public int id;
 
-	public JpaxosClient(List<String> ops, String file, CyclicBarrier gate) { 
+	public JpaxosClient(List<String> ops, String file, CyclicBarrier gate, int id) { 
 		this.ops = ops;
 		this.gate = gate;
 		this.count = 0;
+		this.counts = new ArrayList<>();
+		this.latencies = new ArrayList<>();
+		this.id = id;
 		try {
 			client = new Client(new Configuration(file));
 		} catch (Exception e) {}
@@ -43,19 +49,30 @@ class JpaxosClient extends Thread{
 			try {
 				this.gate.await();
 			} catch (Exception e) {}
-			
+
 			client.connect();
 			this.cut(Util.cutTime);
-			long start = Util.getCurrTime(); 
-			long timeout = Util.testTime;
+			//long timeout = Util.testTime;
+			long timeout = 500;
 			int i = 0;
-			while(Util.getCurrTime() - start < timeout) {
-				if(i >= this.ops.size()) i = 0;
-				String op = this.ops.get(i ++);	
-				this.execute(op);
-				this.count ++;
+			for(int j = 0; j < 60; j++) {
+				this.count = 0;
+				this.latency = 0;
+				long start = Util.getCurrTime(); 
+				if(this.id == 50 && j == 30) {
+					String op = "fail";
+					this.execute(op);
+				}
+				while(Util.getCurrTime() - start < timeout) {
+					if(i >= this.ops.size()) i = 0;
+					String op = this.ops.get(i ++);	
+					this.execute(op);
+					this.count ++;
+				}
+				this.counts.add(count);
+				this.latency = timeout / (double) this.count;
+				this.latencies.add(latency);
 			}
-			this.latency = timeout / (double) this.count;
 			this.cut(Util.cutTime);
 		}
 
@@ -74,7 +91,8 @@ class JpaxosClient extends Thread{
 		MapCommand cmd = null;
 		if(item[0].equals("put")) 
 			cmd = new MapCommand(item[1], item[2]);
-		else cmd = new MapCommand(item[1], "");
+		else if(item[0].equals("get")) cmd = new MapCommand(item[1], "");
+		else cmd = new MapCommand("fail", "");
 		ObjectOutputStream oos = null;
 		ByteArrayOutputStream baos = null;
 
@@ -114,6 +132,7 @@ class JpaxosClient extends Thread{
 		String configFile = args[5];
 		int num_threads = Integer.parseInt(args[6]);
 		int num_clients = Integer.parseInt(args[7]);
+		int id = Integer.parseInt(args[8]);
 		CyclicBarrier gate = new CyclicBarrier(num_threads);
 
 		List<String>[] ops = new ArrayList[num_threads];
@@ -121,7 +140,7 @@ class JpaxosClient extends Thread{
 
 		for(int i = 0; i < num_threads; i++) {
 			ops[i] = Util.ops_generator(num_ops, max, val_len, coef, ratio);
-			clients[i] = new JpaxosClient(ops[i], configFile, gate);
+			clients[i] = new JpaxosClient(ops[i], configFile, gate, id * num_threads + i);
 		}
 
 		ExecutorService es = Executors.newFixedThreadPool(num_threads);
@@ -138,14 +157,17 @@ class JpaxosClient extends Thread{
 
 		if(!ok) System.out.println("incomplete simulation....");
 		DecimalFormat df = new DecimalFormat("#.00"); 
-		double sum = 0.0;
-		long sum_count = 0;
-		for(int i = 0; i < num_threads; i++) {
-			sum += clients[i].latency;
-			sum_count += clients[i].count;
+		for(int j = 0; j < 60; j++) {
+			double sum = 0.0;
+			long sum_count = 0;
+			for(int i = 0; i < num_threads; i++) {
+				sum += clients[i].latencies.get(j);
+				sum_count += clients[i].counts.get(j);
+			}
+			double avgLatency = sum / num_threads;
+			System.out.println(df.format((double) num_clients * sum_count));
+			//System.out.println(df.format((double) num_clients * 1000 * sum_count / (double)Util.testTime));
+			System.out.println(df.format(avgLatency));
 		}
-		double avgLatency = sum / num_threads;
-		System.out.println(df.format((double) num_clients * 1000 * sum_count / (double)Util.testTime));
-		System.out.println(df.format(avgLatency));
 	}
 }

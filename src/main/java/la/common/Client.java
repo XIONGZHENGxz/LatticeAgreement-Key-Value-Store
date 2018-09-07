@@ -44,6 +44,8 @@ public class Client extends Thread{
 	public DataInputStream input;
 	public long count;
 	public Random rand;
+	public List<Long> counts;
+	public List<Double> latencies;
 
 	public Client(List<String> ops, String config, CyclicBarrier gate, int num_prop, int id) { 
 		this.servers = new ArrayList<>();
@@ -56,6 +58,8 @@ public class Client extends Thread{
 		this.rand = new Random();
 		this.id = id;
 		this.rand = new Random();
+		this.counts = new ArrayList<>();
+		this.latencies = new ArrayList<>();
 	}
 
 	public Response handleRequest(Request req) {
@@ -67,13 +71,13 @@ public class Client extends Thread{
 		int s = Util.decideServer(this.servers.size());
 		Messager.sendMsg(req, this.servers.get(s), this.ports.get(s));
 	}
-/** Modifies socket timeout basing on previous reply times */
-    private void updateTimeout() throws Exception {
-        TIMEOUT = (int) (TO_MULTIPLIER * average.get());
-        TIMEOUT = Math.min(TIMEOUT, MAX_TIMEOUT);
-        TIMEOUT = Math.max(TIMEOUT, MIN_TIMEOUT);
+	/** Modifies socket timeout basing on previous reply times */
+	private void updateTimeout() throws Exception {
+		TIMEOUT = (int) (TO_MULTIPLIER * average.get());
+		TIMEOUT = Math.min(TIMEOUT, MAX_TIMEOUT);
+		TIMEOUT = Math.max(TIMEOUT, MIN_TIMEOUT);
 		socket.setSoTimeout(TIMEOUT);
-    }
+	}
 
 	public boolean execute (Op op) {
 		long s = System.currentTimeMillis();
@@ -81,36 +85,36 @@ public class Client extends Thread{
 		buffer.flip();
 		try {
 			/*
-			socket.write(buffer);
-			ByteBuffer bb = ByteBuffer.allocate(48);
-			int bytes = socket.read(bb);
-			long start = Util.getCurrTime();
-			while(bytes < 4 && Util.getCurrTime() - start < this.TIMEOUT) {
-				try {
-					Thread.sleep(5);
-				} catch (Exception e) {}
-				bytes = socket.read(bb);
-			}
-			if(bytes < 1) {
-				increaseTimeout();
-				return false;
-			}
-			bb.flip();
-			Result res = Result.values()[bb.getInt()];
-			long time = System.currentTimeMillis() - s;
-            average.add(time);
-			updateTimeout();
-			if(res == Result.TRUE) return true;
+			   socket.write(buffer);
+			   ByteBuffer bb = ByteBuffer.allocate(48);
+			   int bytes = socket.read(bb);
+			   long start = Util.getCurrTime();
+			   while(bytes < 4 && Util.getCurrTime() - start < this.TIMEOUT) {
+			   try {
+			   Thread.sleep(5);
+			   } catch (Exception e) {}
+			   bytes = socket.read(bb);
+			   }
+			   if(bytes < 1) {
+			   increaseTimeout();
+			   return false;
+			   }
+			   bb.flip();
+			   Result res = Result.values()[bb.getInt()];
+			   long time = System.currentTimeMillis() - s;
+			   average.add(time);
+			   updateTimeout();
+			   if(res == Result.TRUE) return true;
 			 */
-			   byte[] req = buffer.array();
-			   output.write(req);
-			   output.flush();
-			   //System.out.println(this.id + " wrote...");
-			   Response reply = new Response(input);
+			byte[] req = buffer.array();
+			output.write(req);
+			output.flush();
+			//System.out.println(this.id + " wrote...");
+			Response reply = new Response(input);
 			long time = System.currentTimeMillis() - s;
-            average.add(time);
+			average.add(time);
 			updateTimeout();
-			   if(reply.ok == Result.TRUE) return true;
+			if(reply.ok == Result.TRUE) return true;
 		} catch (Exception e) {
 			//e.printStackTrace();
 			increaseTimeout();
@@ -140,21 +144,21 @@ public class Client extends Thread{
 		try {
 			InetSocketAddress addr = new InetSocketAddress(this.servers.get(replica), this.ports.get(replica));
 			/*
-			socket = SocketChannel.open();
-			socket.connect(addr);
-			long start = Util.getCurrTime();
-			while(!socket.finishConnect()) {
-				if(Util.getCurrTime() - start > Util.CONNECT_TIMEOUT) 
-					return false;
-			}
+			   socket = SocketChannel.open();
+			   socket.connect(addr);
+			   long start = Util.getCurrTime();
+			   while(!socket.finishConnect()) {
+			   if(Util.getCurrTime() - start > Util.CONNECT_TIMEOUT) 
+			   return false;
+			   }
 
-			socket.configureBlocking(false);
+			   socket.configureBlocking(false);
 			 */
-			   socket = new Socket();
-			   socket.connect(addr, TIMEOUT);
-			   this.updateTimeout();
-			   output = new DataOutputStream(socket.getOutputStream());
-			   input = new DataInputStream(socket.getInputStream());
+			socket = new Socket();
+			socket.connect(addr, TIMEOUT);
+			this.updateTimeout();
+			output = new DataOutputStream(socket.getOutputStream());
+			input = new DataInputStream(socket.getInputStream());
 			//output = new DataOutputStream(socket.getOutputStream());
 			//input = new DataInputStream(socket.getInputStream());
 		} catch (Exception e) {
@@ -186,27 +190,38 @@ public class Client extends Thread{
 				replica = (replica + 1 + rand.nextInt(this.servers.size() - 1)) % this.servers.size();
 				connected = this.reconnect();
 			}
-			long timeout = Util.testTime;
+			long timeout = 1000;
 			this.cut(Util.cutTime);
-			long start = Util.getCurrTime();
 			int i = 0;
-			//long second = 1000;
-			while(Util.getCurrTime() - start < timeout) {
-				if(i >= this.ops.size()) i = 0;
-				String op = this.ops.get(i ++);
-				String[] item = op.split("\\s");
-				Op ope = null;
-				if(item[0].equals("put")) 
-					ope = new Op(Type.PUT, item[1], item[2]);
-				else ope = new Op(Type.GET, item[1], "");
-
-				while(!this.execute(ope) && Util.getCurrTime() - start < timeout) {
-					replica = (replica + 1 + rand.nextInt(this.servers.size() - 1)) % this.servers.size();
-					this.reconnect();
+			for (int j = 0; j < 30; j ++) {
+				long start = Util.getCurrTime();
+				this.count = 0;
+				if(j == 15 && this.id == 50) { 
+					Op op = new Op(Type.FAIL, "", "");
+					while(!this.execute(op)) {
+						this.reconnect();
+					}
 				}
-				this.count ++;
+					
+				while(Util.getCurrTime() - start < timeout) {
+					if(i >= this.ops.size()) i = 0;
+					String op = this.ops.get(i ++);
+					String[] item = op.split("\\s");
+					Op ope = null;
+					if(item[0].equals("put")) 
+						ope = new Op(Type.PUT, item[1], item[2]);
+					else ope = new Op(Type.GET, item[1], "");
+
+					while(!this.execute(ope) && Util.getCurrTime() - start < timeout) {
+						replica = (replica + 1 + rand.nextInt(this.servers.size() - 1)) % this.servers.size();
+						this.reconnect();
+					}
+					this.count ++;
+				}
+				this.latency = timeout / (double) this.count;
+				this.counts.add(count);
+				this.latencies.add(this.latency);
 			}
-			this.latency = timeout / (double) this.count;
 			this.cut(Util.cutTime);
 		}
 

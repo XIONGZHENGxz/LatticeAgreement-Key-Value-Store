@@ -45,7 +45,8 @@ public class MapCommand implements Serializable {
 	}
 
 	public boolean isValid() {
-		return key != null;
+		if(key.equals("fail")) return false;
+		return true;
 	}
 
 	public String toString() {

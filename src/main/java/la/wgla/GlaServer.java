@@ -92,17 +92,17 @@ public class GlaServer extends Server{
 	}
 
 	public void close() {
-		while(!l.serverSocket.isClosed()) {
-			if(Util.DEBUG) System.out.println("trying to close socket...");
+		while(!socketAcceptor.serverSocket.isOpen()) {
+			System.out.println("trying to close socket...");
 			try {
-				l.serverSocket.close();
+				socketAcceptor.serverSocket.close();
 			} catch (Exception e) {
 				break;
 			}
 		}
 
 		while(!gla.l.serverSocket.isClosed()) {
-			if(Util.DEBUG) System.out.println("trying to close socket...");
+			System.out.println("trying to close socket...");
 			try {
 				gla.l.serverSocket.close();
 			} catch (Exception e) {
@@ -132,10 +132,11 @@ public class GlaServer extends Server{
 			//this.gla.receiveWrite(req);
 			return new Response(Result.TRUE, "");
 		} else {
-			//this.fail = true;
+			this.fail = true;
 			this.close();
+			//System.exit(1);
+			return new Response(Result.TRUE, "");
 		}
-		return null;
 	}
 
 

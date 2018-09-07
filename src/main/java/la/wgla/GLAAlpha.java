@@ -157,6 +157,7 @@ public class GLAAlpha extends Server implements Runnable {
 			if(this.r == 0) want = this.n - this.s.f - 1;
 			else want = n / 2;
 			while(this.received.size() < want && !this.decided.containsKey(this.seq)) {
+				if(this.s.fail) return;
 				//while(this.received.size() < want) {
 				//System.out.println(this.me + " waiting for ack received :"+ " "+ this.received + " active +" +this.active + " seq "+ this.seq + " round "+ this.r);
 				loop ++;
@@ -196,6 +197,7 @@ public class GLAAlpha extends Server implements Runnable {
 				for(Op o : this.acceptVal) writes.add(o);
 			}
 			}
+			if(this.s.fail) return;
 
 			this.decided.put(this.seq, writes);
 			if(!writesWaked) {
@@ -239,7 +241,7 @@ public class GLAAlpha extends Server implements Runnable {
 				synchronized(lock1) {
 					this.active = true;
 				}
-				while(true) { 
+				while(!this.s.fail) { 
 					this.seq = this.catchUp();
 					this.start();
 					if(this.writeBuffVal.size() == 0 && this.readBuffVal.size() == 0) break;
