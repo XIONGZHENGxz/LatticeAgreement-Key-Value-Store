@@ -173,13 +173,14 @@ do
 	throughput="${arr[0]}"
 	echo $throughput
 	IFS=$'\n' read -ra ret <<< "$res"
-	latency="${arr[1]}"
+	w_latency="${arr[1]}"
 	echo $latency
+	r_latency="${arr[2]}"
 
 	#write results to file
 	#if [ ! -f "results.csv" ]; then 
-		#echo "target,numReplicas,numThreads,numOps,readsRatio,distribution,throughput,latency" >> "results.csv"
+		#echo "target,numReplicas,numThreads,numOps,readsRatio,distribution,throughput,wLatency, rLatency" >> "results.csv"
 	#fi
-	echo "${target},${numReplicas},${numThreads},${numOps},${readsRatio},${distribution},${throughput},${latency}" >> "results.csv"
+	echo "${target},${numReplicas},${numThreads},${numOps},${readsRatio},${distribution},${throughput},${w_latency}, ${r_latency}" >> "results.csv"
 done
 

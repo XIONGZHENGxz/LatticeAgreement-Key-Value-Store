@@ -28,6 +28,8 @@ public class Client extends Thread{
 	public CyclicBarrier gate;
 	public int num_prop;
 	public double latency;
+	public double wLatency;
+	public double rLatency;
 	public int TIMEOUT;
 	public int replica;
 	private static final int TO_MULTIPLIER = 3;
@@ -54,6 +56,8 @@ public class Client extends Thread{
 		this.num_prop = num_prop;
 		this.gate = gate;
 		this.rand = new Random();
+		this.wLatency = 0;
+		this.rLatency = 0;
 		this.id = id;
 		this.rand = new Random();
 	}
@@ -180,6 +184,8 @@ public class Client extends Thread{
 				e.printStackTrace();
 			}
 
+			int wCount = 0, rCount = 0;
+			long w_time = 0, r_time = 0;
 			replica = this.id % this.num_prop;
 			boolean connected = this.connect();
 			while(!connected) {
@@ -190,23 +196,34 @@ public class Client extends Thread{
 			this.cut(Util.cutTime);
 			long start = Util.getCurrTime();
 			int i = 0;
-			//long second = 1000;
 			while(Util.getCurrTime() - start < timeout) {
 				if(i >= this.ops.size()) i = 0;
 				String op = this.ops.get(i ++);
 				String[] item = op.split("\\s");
 				Op ope = null;
-				if(item[0].equals("put")) 
+				boolean w = false;
+				if(item[0].equals("put")) {
 					ope = new Op(Type.PUT, item[1], item[2]);
-				else ope = new Op(Type.GET, item[1], "");
+					w = true;
+				} else ope = new Op(Type.GET, item[1], "");
+				long op_start = Util.getCurrTime();
 
 				while(!this.execute(ope) && Util.getCurrTime() - start < timeout) {
 					replica = (replica + 1 + rand.nextInt(this.servers.size() - 1)) % this.servers.size();
 					this.reconnect();
 				}
+				long op_time = Util.getCurrTime() - op_start;
+				if(w) {
+					wCount ++;
+					w_time += op_time;
+				} else { 
+					rCount ++;
+					r_time += op_time;
+				}
 				this.count ++;
 			}
-			this.latency = timeout / (double) this.count;
+			this.wLatency = w_time / (double) wCount;
+			this.rLatency = r_time / (double) rCount;
 			this.cut(Util.cutTime);
 		}
 
