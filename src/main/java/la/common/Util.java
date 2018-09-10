@@ -21,7 +21,7 @@ public class Util {
 	public static int syncFreq = 5000;
 	public static int loop = 1000;
 	public static int freq = 7;
-	public static int threshold = 1000;
+	public static int threshold = 1500;
 	public static int requestSize = 48;
 	public static int threadLimit = 100;
 	public static int cutTime = 15 * 1000;
@@ -41,7 +41,7 @@ public class Util {
 	public static String la_config = "config/la_config.txt";
 	public static String cass_config = "config/cassandra_config.txt";
 	public static Random rand = new Random();
-	public static final int TIMEOUT = 2000;
+	public static final int TIMEOUT = 1000;
 	public static final int CONNECT_TIMEOUT = 500;
 	public static final int session_timeout = 1000 * 1000;
 	public static final int THREADS = 100;

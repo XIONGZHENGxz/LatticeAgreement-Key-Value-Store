@@ -170,6 +170,7 @@ do
 	while read -r line; do
 		arr+=("$line")
 	done <<< "$res"
+<<<<<<< HEAD
 	
 	i=0
 	while [[ "$i" -le "29" ]]; do
@@ -181,10 +182,22 @@ do
 		echo $latency
 		echo "${throughput},${latency}" >> "results.csv"
 	done
+=======
+	throughput="${arr[0]}"
+	echo $throughput
+	IFS=$'\n' read -ra ret <<< "$res"
+	w_latency="${arr[1]}"
+	echo $latency
+	r_latency="${arr[2]}"
+>>>>>>> 4c6766ec3200f97bcb0b23df3ba72c9ac90f5770
 
 	#write results to file
 	#if [ ! -f "results.csv" ]; then 
-		#echo "target,numReplicas,numThreads,numOps,readsRatio,distribution,throughput,latency" >> "results.csv"
+		#echo "target,numReplicas,numThreads,numOps,readsRatio,distribution,throughput,wLatency, rLatency" >> "results.csv"
 	#fi
+<<<<<<< HEAD
+=======
+	echo "${target},${numReplicas},${numThreads},${numOps},${readsRatio},${distribution},${throughput},${w_latency}, ${r_latency}" >> "results.csv"
+>>>>>>> 4c6766ec3200f97bcb0b23df3ba72c9ac90f5770
 done
 

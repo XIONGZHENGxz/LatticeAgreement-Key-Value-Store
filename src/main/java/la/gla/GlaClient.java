@@ -126,6 +126,7 @@ class GlaClient extends Client {
 		//	if(!ok) System.out.println(id + " incomplete simulation....");
 
 		DecimalFormat df = new DecimalFormat("#.00"); 
+<<<<<<< HEAD
 		for(int j = 0; j < 30; j++) {
 			long sum_count = 0;
 			double sum = 0.0;
@@ -141,6 +142,22 @@ class GlaClient extends Client {
 
 
 		//write("wgla," + clients[0].num_prop + "," + num_threads + "," +num_ops + "," + ratio + "," + coef + "," + th + "," + avgLatency + "\n");
+=======
+		double w_latency = 0.0, r_latency = 0;
+		long sum_count = 0;
+		for(int i = 0; i < num_threads; i++) {
+			w_latency += clients[i].wLatency;
+			r_latency += clients[i].rLatency;
+			sum_count += clients[i].count;
+		}
+		double avg_w_latency = w_latency / num_threads;
+		double avg_r_latency = r_latency / num_threads;
+		double th = (double) num_clients * 1000 * sum_count / (double) Util.testTime;
+		//write("wgla," + clients[0].num_prop + "," + num_threads + "," +num_ops + "," + ratio + "," + coef + "," + th + "," + avgLatency + "\n");
+		System.out.println(df.format(th));
+		System.out.println(df.format(avg_w_latency));
+		System.out.println(df.format(avg_r_latency));
+>>>>>>> 4c6766ec3200f97bcb0b23df3ba72c9ac90f5770
 
 		if(Util.TEST) {
 			System.out.println("checking...");
