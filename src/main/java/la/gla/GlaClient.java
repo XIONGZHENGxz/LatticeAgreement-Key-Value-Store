@@ -132,7 +132,7 @@ class GlaClient extends Client {
 			long sum_count = 0;
 			double sum = 0.0;
 			for(int i = 0; i < num_threads; i++) {
-				sum += clients[i].latencies.get(j);
+				sum += clients[0].latencies.get(j);
 				sum_count += clients[i].counts.get(j);
 			}
 			double avgLatency = sum / num_threads;

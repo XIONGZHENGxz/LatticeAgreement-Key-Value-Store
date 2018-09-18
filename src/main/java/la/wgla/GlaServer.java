@@ -85,8 +85,8 @@ public class GlaServer extends Server{
 			readExecutor[i] = new ReadExecutor(this);
 			readExecutor[i].start();
 		}
-		this.executor = new Executor(this);
-		this.executor.start();
+		//this.executor = new Executor(this);
+		//this.executor.start();
 		this.socketAcceptor.start();
 	}
 

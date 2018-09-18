@@ -158,7 +158,7 @@ public class Client extends Thread{
 			   socket.configureBlocking(false);
 			 */
 			socket = new Socket();
-			socket.connect(addr, TIMEOUT);
+			socket.connect(addr, Util.TIMEOUT);
 			this.updateTimeout();
 			output = new DataOutputStream(socket.getOutputStream());
 			input = new DataInputStream(socket.getInputStream());

@@ -223,8 +223,8 @@ public class GLAAlpha extends Server implements Runnable {
 			//this.acceptVal.removeAll(this.oldAccept);
 			//	if(receivedAll) 
 			//		this.acceptVal.removeAll(this.LV.get(this.seq));
-			//this.s.apply(this.seq);
-			this.wakeReads();
+			this.s.apply(this.seq);
+			//this.wakeReads();
 			//this.sendLearnt(this.seq, writes, reads);
 		}
 
@@ -279,29 +279,27 @@ public class GLAAlpha extends Server implements Runnable {
 			}
 		}
 
-		/*
-		   public void wakeReads() {
-		   try {
-		   this.s.rlock.lock();
-		   this.s.rcond.signalAll();
-		   } catch (Exception e) {
-		   e.printStackTrace();
-		   } finally {
-		   this.s.rlock.unlock();
-		   }
-		   } 
-		 */
-		public void wakeReads() {
-			try {	
-				this.s.elock.lock();
-				this.s.econd.signalAll();
-				System.out.println(this.me +" aignalled...");
+		public void wakeReads1() {
+			try {
+				this.s.rlock.lock();
+				this.s.rcond.signalAll();
 			} catch (Exception e) {
 				e.printStackTrace();
 			} finally {
-				this.s.elock.unlock();
+				this.s.rlock.unlock();
 			}
-		}
+		} 
+		   public void wakeReads() {
+		   try {	
+		   this.s.elock.lock();
+		   this.s.econd.signalAll();
+		   System.out.println(this.me +" aignalled...");
+		   } catch (Exception e) {
+		   e.printStackTrace();
+		   } finally {
+		   this.s.elock.unlock();
+		   }
+		   }
 		public void broadCast(Request req) {
 			for(int i = 0; i < this.n; i++) {
 				if(i == this.me) continue;
