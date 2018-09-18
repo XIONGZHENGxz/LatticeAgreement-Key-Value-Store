@@ -29,6 +29,7 @@ public class Client extends Thread{
 	public int num_prop;
 	public double latency;
 	public int TIMEOUT;
+	public int failure;
 	public int replica;
 	private static final int TO_MULTIPLIER = 3;
 	private static final int INITIAL_TIMEOUT = 3000 / TO_MULTIPLIER;
@@ -48,6 +49,7 @@ public class Client extends Thread{
 	public List<Double> latencies;
 
 	public Client(List<String> ops, String config, CyclicBarrier gate, int num_prop, int id) { 
+		this.failure = -1;
 		this.servers = new ArrayList<>();
 		this.ports = new ArrayList<>();
 		this.TIMEOUT = Util.TIMEOUT;
@@ -164,6 +166,7 @@ public class Client extends Thread{
 			//input = new DataInputStream(socket.getInputStream());
 		} catch (Exception e) {
 			//e.printStackTrace();
+			this.failure = this.replica;
 			return false;
 		}
 		return true;
@@ -217,6 +220,9 @@ public class Client extends Thread{
 
 					while(!this.execute(ope) && Util.getCurrTime() - start < timeout) {
 						replica = (replica + 1 + rand.nextInt(this.servers.size() - 1)) % this.servers.size();
+						while(this.replica == this.failure) {
+							replica = (replica + 1 + rand.nextInt(this.servers.size() - 1)) % this.servers.size();
+						}
 						this.reconnect();
 					}
 					this.count ++;

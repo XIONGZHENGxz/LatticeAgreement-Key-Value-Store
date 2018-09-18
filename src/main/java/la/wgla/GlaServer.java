@@ -92,7 +92,7 @@ public class GlaServer extends Server{
 
 	public void close() {
 		while(!socketAcceptor.serverSocket.isOpen()) {
-			System.out.println("trying to close socket...");
+			//System.out.println("trying to close socket...");
 			try {
 				socketAcceptor.serverSocket.close();
 			} catch (Exception e) {
@@ -101,7 +101,7 @@ public class GlaServer extends Server{
 		}
 
 		while(!gla.l.serverSocket.isClosed()) {
-			System.out.println("trying to close socket...");
+			//System.out.println("trying to close socket...");
 			try {
 				gla.l.serverSocket.close();
 			} catch (Exception e) {
@@ -180,7 +180,7 @@ public class GlaServer extends Server{
 	
 	public void apply(int seq) {
 		for(int i = this.exeInd + 1; i <= seq; i++) {
-			//System.out.println(this.me + " apply...." + i);
+			System.out.println(this.me + " apply...." + i);
 			for(Op o : this.gla.learntWrites(i)) {
 				Set<Op> prev = this.gla.learntWrites(i - 1);
 				if(prev.contains(o)) continue;

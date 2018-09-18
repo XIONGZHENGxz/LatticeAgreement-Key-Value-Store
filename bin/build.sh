@@ -144,7 +144,7 @@ do
 	if [ $target == "crdt" ]; then 
 		res=`java -cp $jarFile la.crdt.CrdtClient $numOps $max $valLen $distribution $readsRatio t $configFile $numThreads $numProp $numClients` 
 	elif [ "$target" == "gla" ] || [ "$target" == "pgla" ] || [ "$target" == "wgla" ]; then 
-		res=`timeout 80 java -cp $jarFile la.gla.GlaClient $numOps $max $valLen $distribution $readsRatio $configFile $numThreads $numProp $numClients $clientId` 
+		res=`java -cp $jarFile la.gla.GlaClient $numOps $max $valLen $distribution $readsRatio $configFile $numThreads $numProp $numClients $clientId` 
 	elif [ "$target" == "jpaxos" ]; then 
 		res=`java -cp $jarFile la.jpaxos.JpaxosClient $numOps $max $valLen $distribution $readsRatio $configFile $numThreads $numClients $clientId` 
 	elif [ "$target" == "mgla" ]; then 

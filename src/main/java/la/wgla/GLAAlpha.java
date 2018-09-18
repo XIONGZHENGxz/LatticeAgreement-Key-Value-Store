@@ -208,9 +208,7 @@ public class GLAAlpha extends Server implements Runnable {
 				this.learntReads.put(this.seq, new HashSet<Op>());
 			}
 
-			synchronized (this.s) {
-				this.LV.put(this.seq , writes);
-			}
+			this.LV.put(this.seq , writes);
 
 			this.learntMaxSeq = this.seq;
 
@@ -282,28 +280,28 @@ public class GLAAlpha extends Server implements Runnable {
 		}
 
 		/*
-		public void wakeReads() {
-			try {
-				this.s.rlock.lock();
-				this.s.rcond.signalAll();
-			} catch (Exception e) {
-				e.printStackTrace();
-			} finally {
-				this.s.rlock.unlock();
-			}
-		} 
-		 */
 		   public void wakeReads() {
-		   try {	
-		   this.s.elock.lock();
-		   this.s.econd.signalAll();
-		   //System.out.println(this.me +" aignalled...");
+		   try {
+		   this.s.rlock.lock();
+		   this.s.rcond.signalAll();
 		   } catch (Exception e) {
 		   e.printStackTrace();
 		   } finally {
-		   this.s.elock.unlock();
+		   this.s.rlock.unlock();
 		   }
-		   }
+		   } 
+		 */
+		public void wakeReads() {
+			try {	
+				this.s.elock.lock();
+				this.s.econd.signalAll();
+				System.out.println(this.me +" aignalled...");
+			} catch (Exception e) {
+				e.printStackTrace();
+			} finally {
+				this.s.elock.unlock();
+			}
+		}
 		public void broadCast(Request req) {
 			for(int i = 0; i < this.n; i++) {
 				if(i == this.me) continue;
@@ -353,13 +351,13 @@ public class GLAAlpha extends Server implements Runnable {
 
 		public void catchUp(int s) {
 			synchronized (this.s) {
-			while(this.seq < s) {
-				this.seq ++;
-				if(this.decided.containsKey(this.seq)) {
-					this.LV.put(this.seq, this.decided.get(this.seq));
-					this.acceptVal.removeAll(this.LV.get(this.seq - 1));
-				} 
-			}
+				while(this.seq < s) {
+					this.seq ++;
+					if(this.decided.containsKey(this.seq)) {
+						this.LV.put(this.seq, this.decided.get(this.seq));
+						this.acceptVal.removeAll(this.LV.get(this.seq - 1));
+					} 
+				}
 			}
 			this.handleAllProp();
 		}
@@ -416,7 +414,7 @@ public class GLAAlpha extends Server implements Runnable {
 			//System.out.println("get request "+req);
 
 			if(req.type.equals("proposal")) {
-				System.out.println(this.me + " proposal...."+req.seq + " " + this.seq + " " + this.active);
+				//System.out.println(this.me + " proposal...."+req.seq + " " + this.seq + " " + this.active);
 				if(req.seq < this.seq) {
 					if(this.LV.containsKey(req.seq)) {
 						req.writes.removeAll(this.LV.get(req.seq));

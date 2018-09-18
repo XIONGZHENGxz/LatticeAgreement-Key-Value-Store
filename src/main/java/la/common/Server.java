@@ -6,7 +6,7 @@ import java.util.ArrayList;
 public class Server {
 	
 	public int me;
-	public boolean fail;
+	public volatile boolean fail;
 	public List<String> peers; 
 	public List<Integer> ports;
 	public int port;

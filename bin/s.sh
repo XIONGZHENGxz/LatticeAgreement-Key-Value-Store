@@ -51,8 +51,8 @@ done
 
 master="${masters[${num}]}"
 master=${master%$'\n'}
-scp -i $keyFile "bin/build.sh" "${username}@${master}:${remoteDir}"
 if [[ "${2}" == "-c" || "${2}" == "-n" ]];then
+	scp -i $keyFile "bin/build.sh" "${username}@${master}:${remoteDir}"
 	scp -i $keyFile -r "config/" "${username}@${master}:${remoteDir}"
 	scp -i $keyFile -r "bin/" "${username}@${master}:${remoteDir}"
 fi

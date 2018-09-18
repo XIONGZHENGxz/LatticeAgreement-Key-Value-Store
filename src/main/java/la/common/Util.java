@@ -41,7 +41,7 @@ public class Util {
 	public static String la_config = "config/la_config.txt";
 	public static String cass_config = "config/cassandra_config.txt";
 	public static Random rand = new Random();
-	public static final int TIMEOUT = 1000;
+	public static final int TIMEOUT = 500;
 	public static final int CONNECT_TIMEOUT = 500;
 	public static final int session_timeout = 1000 * 1000;
 	public static final int THREADS = 100;
@@ -50,7 +50,7 @@ public class Util {
 	public static final int sigTimeout = 5;
 	public static final int gap = 1;
 	public static final int failTime = 30;
-	public static final int timeout = 500;
+	public static final int timeout = 200;
 
 	public static long getCurrTime() {
 		return System.currentTimeMillis();
