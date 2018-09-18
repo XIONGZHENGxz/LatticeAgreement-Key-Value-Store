@@ -80,6 +80,7 @@ public class Client extends Thread{
 	}
 
 	public boolean execute (Op op) {
+		//System.out.println(this.id + " executing...." + op);
 		long s = System.currentTimeMillis();
 		ByteBuffer buffer = op.toBytes();
 		buffer.flip();
@@ -169,10 +170,12 @@ public class Client extends Thread{
 	}
 
 	public boolean reconnect() {
-		//System.out.println("reconnecting...");
+		//System.out.println(this.id +" reconnecting...");
+		/*
 		try {
 			Thread.sleep(Util.TIMEOUT / 3 + rand.nextInt(2 * Util.TIMEOUT / 3));
 		} catch (Exception e) {}
+		*/
 		return this.connect();
 	}
 
@@ -191,18 +194,18 @@ public class Client extends Thread{
 				connected = this.reconnect();
 			}
 			long timeout = 1000;
+			int num = (int) Util.failTime * (1000 / (int)Util.timeout);
 			this.cut(Util.cutTime);
 			int i = 0;
-			for (int j = 0; j < 30; j ++) {
-				long start = Util.getCurrTime();
+			for (int j = 0; j < num; j ++) {
 				this.count = 0;
-				if(j == 15 && this.id == 50) { 
+				if(j == num / 2 && this.id == 50) { 
 					Op op = new Op(Type.FAIL, "", "");
 					while(!this.execute(op)) {
 						this.reconnect();
 					}
 				}
-					
+				long start = Util.getCurrTime();
 				while(Util.getCurrTime() - start < timeout) {
 					if(i >= this.ops.size()) i = 0;
 					String op = this.ops.get(i ++);
@@ -219,7 +222,7 @@ public class Client extends Thread{
 					this.count ++;
 				}
 				this.latency = timeout / (double) this.count;
-				this.counts.add(count);
+				this.counts.add(count * (1000 / timeout));
 				this.latencies.add(this.latency);
 			}
 			this.cut(Util.cutTime);

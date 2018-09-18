@@ -120,13 +120,15 @@ class GlaClient extends Client {
 		try {
 			es.shutdown();
 			//System.out.println(id + " shutdown...");
-			ok = es.awaitTermination(2, TimeUnit.MINUTES);
+			ok = es.awaitTermination(4, TimeUnit.MINUTES);
 		} catch(Exception e) {}
 
 		//	if(!ok) System.out.println(id + " incomplete simulation....");
 
 		DecimalFormat df = new DecimalFormat("#.00"); 
-		for(int j = 0; j < 30; j++) {
+		int num = (int) Util.failTime * (1000 / (int) Util.timeout);
+
+		for(int j = 0; j < num; j++) {
 			long sum_count = 0;
 			double sum = 0.0;
 			for(int i = 0; i < num_threads; i++) {
@@ -134,7 +136,8 @@ class GlaClient extends Client {
 				sum_count += clients[i].counts.get(j);
 			}
 			double avgLatency = sum / num_threads;
-			double th = (double) num_clients * sum_count;
+			double th = 0.0;
+			th = (double) num_clients * sum_count;
 			System.out.println(df.format(th));
 			System.out.println(df.format(avgLatency));
 		}

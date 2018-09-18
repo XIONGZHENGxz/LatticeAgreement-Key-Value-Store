@@ -26,13 +26,15 @@ public class SocketProcessor implements Runnable {
 	public Queue<Socket> inQueue;
 	public long socketId;
 	public ByteBuffer ready;
+	public SocketAcceptor acceptor;
 
-	public SocketProcessor (Server s) {
+	public SocketProcessor (Server s, SocketAcceptor acceptor) {
 		try {
 			selector = Selector.open();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
+		this.acceptor = acceptor;
 		server = s;
 		es = Executors.newFixedThreadPool(Util.threadLimit);
 		inQueue = new LinkedList<>();
@@ -117,6 +119,8 @@ public class SocketProcessor implements Runnable {
 
 	public void cancel(SelectionKey key) {
 		try {
+			Socket socket = (Socket) key.attachment();
+			this.acceptor.socketMap.remove(socket.socketId);
 			key.cancel();
 			key.channel().close();
 		} catch (Exception e) {}

@@ -45,16 +45,14 @@ public class GLAAlpha extends Server implements Runnable {
 	public int minSeq; 
 	public int[] learntSeq; //largest learned sequence number for each peer
 	public ReentrantLock lock;
-	public Map<Integer, Set<Op>> decided;
-	public Map<Integer, Set<Op>> learntReads;
+	public volatile Map<Integer, Set<Op>> decided;
+	public volatile Map<Integer, Set<Op>> learntReads;
 	public List<int[]> maxSeq; //store max seq seen for each peer
 	public Request[] maxProp;
-	public Set<Integer> reqs;
 	public Map<Integer, Boolean> changed;
 	public Map<Integer, Set<Op>> deltas;
 	public int currSize;
 	public int learntMaxSeq;
-	public Map<Integer, Set<Op>> lastRound;
 
 	public GLAAlpha (GlaServer s) {
 		super(s.me, s.peers, s.port, s.ports);
@@ -65,7 +63,6 @@ public class GLAAlpha extends Server implements Runnable {
 		this.lock = new ReentrantLock();
 		tally = 0;
 		this.s = s;
-		this.reqs = new HashSet<>();
 		this.received = new HashSet<>();
 		this.all = new HashSet<>();
 		this.minSeq = -1;
@@ -116,7 +113,7 @@ public class GLAAlpha extends Server implements Runnable {
 		Set<Op> reads = new HashSet<>();
 		//Set<Op> newVals = new HashSet<>();
 		if(this.LV.containsKey(this.seq - 1))
-		this.acceptVal.removeAll(this.LV.get(this.seq - 1));
+			this.acceptVal.removeAll(this.LV.get(this.seq - 1));
 		//this.oldAccept = ConcurrentHashMap.newKeySet();
 		for(Op o : this.acceptVal) {
 			//	oldAccept.add(o);
@@ -134,7 +131,7 @@ public class GLAAlpha extends Server implements Runnable {
 			reads.add(o);
 		}
 		this.seq ++;
-		//System.out.println(this.s.me + " start seq: " + this.seq + " val size: " + writes.size());
+		System.out.println(this.s.me + " start seq: " + this.seq + " val size: " + writes.size() + " accept size: " + acceptVal.size() + " : " + decided.size());
 		this.handleAllProp();
 
 		boolean writesWaked = false;
@@ -210,7 +207,11 @@ public class GLAAlpha extends Server implements Runnable {
 			} else {
 				this.learntReads.put(this.seq, new HashSet<Op>());
 			}
-			this.LV.put(this.seq , writes);
+
+			synchronized (this.s) {
+				this.LV.put(this.seq , writes);
+			}
+
 			this.learntMaxSeq = this.seq;
 
 			//System.out.println(this.me + " complete seq " + this.seq);
@@ -224,9 +225,9 @@ public class GLAAlpha extends Server implements Runnable {
 			//this.acceptVal.removeAll(this.oldAccept);
 			//	if(receivedAll) 
 			//		this.acceptVal.removeAll(this.LV.get(this.seq));
+			//this.s.apply(this.seq);
 			this.wakeReads();
 			//this.sendLearnt(this.seq, writes, reads);
-		//	this.s.apply(this.seq);
 		}
 
 		public void sleep(int t) {
@@ -279,34 +280,30 @@ public class GLAAlpha extends Server implements Runnable {
 				this.s.wlock.unlock();
 			}
 		}
-	
+
+		/*
 		public void wakeReads() {
-					try {
-						this.s.rlock.lock();
-						this.s.rcond.signalAll();
-					} catch (Exception e) {
-						e.printStackTrace();
-					} finally {
-						this.s.rlock.unlock();
-					}
-		} 
-/*
-		public void wakeReads() {
-			try {	
-				if(this.s.elock.tryLock(Util.sigTimeout, TimeUnit.MILLISECONDS)) {
-					try {
-						this.s.econd.signalAll();
-						System.out.println(this.me +" aignalled...");
-					} catch (Exception e) {
-						e.printStackTrace();
-					} finally {
-						this.s.elock.unlock();
-					}
-				}
+			try {
+				this.s.rlock.lock();
+				this.s.rcond.signalAll();
 			} catch (Exception e) {
-			} 
-		}
-*/
+				e.printStackTrace();
+			} finally {
+				this.s.rlock.unlock();
+			}
+		} 
+		 */
+		   public void wakeReads() {
+		   try {	
+		   this.s.elock.lock();
+		   this.s.econd.signalAll();
+		   //System.out.println(this.me +" aignalled...");
+		   } catch (Exception e) {
+		   e.printStackTrace();
+		   } finally {
+		   this.s.elock.unlock();
+		   }
+		   }
 		public void broadCast(Request req) {
 			for(int i = 0; i < this.n; i++) {
 				if(i == this.me) continue;
@@ -319,7 +316,7 @@ public class GLAAlpha extends Server implements Runnable {
 			synchronized(lock1) {
 				if(!this.active) {
 					Thread t = new Thread(this);
-					//this.active = true;
+					this.active = true;
 					t.start();
 				}
 			}
@@ -330,7 +327,7 @@ public class GLAAlpha extends Server implements Runnable {
 			synchronized(lock1) {
 				if(!this.active) {
 					Thread t = new Thread(this);
-					//this.active = true;
+					this.active = true;
 					t.start();
 				}
 			}
@@ -343,7 +340,7 @@ public class GLAAlpha extends Server implements Runnable {
 				synchronized(lock1) {
 					if(!this.active) {
 						Thread t = new Thread(this);
-						//this.active = true;
+						this.active = true;
 						t.start();
 					}
 				}
@@ -355,12 +352,14 @@ public class GLAAlpha extends Server implements Runnable {
 		}
 
 		public void catchUp(int s) {
+			synchronized (this.s) {
 			while(this.seq < s) {
 				this.seq ++;
 				if(this.decided.containsKey(this.seq)) {
 					this.LV.put(this.seq, this.decided.get(this.seq));
 					this.acceptVal.removeAll(this.LV.get(this.seq - 1));
 				} 
+			}
 			}
 			this.handleAllProp();
 		}
@@ -369,11 +368,9 @@ public class GLAAlpha extends Server implements Runnable {
 			int currSeq = this.seq + 1;
 			while(this.decided.containsKey(currSeq)) {
 				Set<Op> tmpVal = this.decided.get(currSeq);
-				if(this.LV.containsKey(currSeq - 1))
 				this.acceptVal.removeAll(this.LV.get(currSeq - 1));
 				this.writeBuffVal.removeAll(tmpVal);
-				if(this.learntReads.containsKey(currSeq))
-					this.readBuffVal.removeAll(this.learntReads.get(currSeq));
+				this.readBuffVal.removeAll(this.learntReads.get(currSeq));
 				this.LV.put(currSeq ++, tmpVal);
 			}
 			return currSeq - 1;
@@ -421,9 +418,10 @@ public class GLAAlpha extends Server implements Runnable {
 			if(req.type.equals("proposal")) {
 				System.out.println(this.me + " proposal...."+req.seq + " " + this.seq + " " + this.active);
 				if(req.seq < this.seq) {
-					req.writes.removeAll(this.LV.get(req.seq));
-					if(this.learntReads.containsKey(req.seq)) 
+					if(this.LV.containsKey(req.seq)) {
+						req.writes.removeAll(this.LV.get(req.seq));
 						req.reads.removeAll(this.learntReads.get(req.seq));
+					}
 					this.receiveServer(req.writes, req.reads);
 					Request resp = new Request("decided", this.LV.get(req.seq), this.learntReads.get(req.seq), req.round, req.seq, this.me);
 					this.sendUdp(resp, req.me);
@@ -447,7 +445,7 @@ public class GLAAlpha extends Server implements Runnable {
 					synchronized(lock1) {
 						if(!this.active) {
 							Thread t = new Thread(this);
-							//this.active = true;
+							this.active = true;
 							t.start();
 						}
 					}

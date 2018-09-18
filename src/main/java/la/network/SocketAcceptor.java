@@ -52,14 +52,14 @@ public class SocketAcceptor extends Thread {
 			try{
 				SocketChannel socketChannel = this.serverSocket.accept();
 
-				//System.out.println("Socket accepted: " + socketChannel);
+				System.out.println("Socket accepted: " + socketChannel);
 
 				//todo check if the queue can even accept more sockets.
 				socketMap.put(socketId, socketChannel);
 				Socket socket = new Socket(socketId, socketChannel);
 				SocketProcessor sp;
 				if(sps.size() < Util.processors) {
-					sp = new SocketProcessor(server);
+					sp = new SocketProcessor(server, this);
 					sps.add(sp);
 					sp.add(socket);
 					Thread t = new Thread(sp);

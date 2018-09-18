@@ -45,6 +45,7 @@ public class GlaServer extends Server{
 	public Condition econd;
 	public int f;
 	public int exeInd; //executed operation index
+	public int rmInd; //executed operation index
 	public TcpListener l;
 	public Random rand;
 	public SocketAcceptor socketAcceptor;
@@ -79,7 +80,6 @@ public class GlaServer extends Server{
 		rcond = rlock.newCondition();
 		econd = elock.newCondition();
 		gla = new GLAAlpha(this);
-		/*
 		this.readExecutor = new ReadExecutor[Util.writer];
 		for(int i = 0; i < Util.writer; i++) {
 			readExecutor[i] = new ReadExecutor(this);
@@ -87,7 +87,6 @@ public class GlaServer extends Server{
 		}
 		this.executor = new Executor(this);
 		this.executor.start();
-		*/
 		this.socketAcceptor.start();
 	}
 
@@ -119,13 +118,14 @@ public class GlaServer extends Server{
 		if(req.type == Type.GET) {
 			String kid = this.me + "" + this.gla.seq;
 			Op noop = new Op(Type.GET, kid, "");
-			/*
 			if(!this.reads.containsKey(kid)) reads.put(kid, new HashSet<Op>());
 			reads.get(kid).add(req);
 			this.gla.receiveRead(noop);
-			*/
+			return null;
+			/*
 			this.read(noop);
 			return this.get(req.key);
+			*/
 		}
 		else if(req.type == Type.PUT || req.type == Type.REMOVE) {
 			this.write(req);
@@ -147,6 +147,7 @@ public class GlaServer extends Server{
 			while(this.gla.writeBuffVal.contains(op)) {
 				this.rcond.await();
 			}
+			//this.apply(this.gla.seq);
 		} catch (Exception e) {
 		} finally {
 			this.rlock.unlock();
@@ -179,13 +180,12 @@ public class GlaServer extends Server{
 	
 	public void apply(int seq) {
 		for(int i = this.exeInd + 1; i <= seq; i++) {
-			System.out.println(this.me + " apply...." + i);
+			//System.out.println(this.me + " apply...." + i);
 			for(Op o : this.gla.learntWrites(i)) {
 				Set<Op> prev = this.gla.learntWrites(i - 1);
 				if(prev.contains(o)) continue;
 				this.put(o.key, o.val);
 			}
-			/*
 			for (Op o : this.gla.learntReads(i)) {
 				if(!this.reads.containsKey(o.key)) continue;
 				for(Op read : this.reads.get(o.key)) {
@@ -194,9 +194,14 @@ public class GlaServer extends Server{
 					readExecutor[ind].add(new Message(resp, socketAcceptor.socketMap.get(read.id)));
 				}
 			}
-			*/
 		}
 		this.exeInd = seq;
+		while(this.rmInd < this.exeInd - 1000) {
+			this.gla.LV.remove(rmInd);
+			this.gla.learntReads.remove(rmInd);
+			this.gla.decided.remove(rmInd);
+			this.rmInd ++;
+		}
 	}
 	
 	public void wakeResponder () {
