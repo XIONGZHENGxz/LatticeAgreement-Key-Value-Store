@@ -40,6 +40,7 @@ public class GLAAlpha extends Server implements Runnable {
 	public final Object lock1 = new Object();
 	public final Object lock2 = new Object();
 	public final Object lock3 = new Object();
+	public final Object lock4 = new Object();
 	public Set<Integer> received; 
 	public Set<Integer> all; 
 	public int minSeq; 
@@ -144,7 +145,9 @@ public class GLAAlpha extends Server implements Runnable {
 		this.received = new HashSet<>();
 
 		for(this.r = 0; this.r < this.s.f + 1; this.r ++) {
+			synchronized (lock4) {
 			received = new HashSet<>();
+			}
 			if(Util.DEBUG) System.out.println(this.me + " propose " + writes.toString());
 			Request req = null;
 			if(this.r == 0) 
@@ -179,7 +182,9 @@ public class GLAAlpha extends Server implements Runnable {
 			}
 
 			synchronized (lock2) {
-				this.all.addAll(this.received);
+				synchronized (lock4) {
+					this.all.addAll(this.received);
+				}
 				if(this.all.size() == this.n - 1) break;
 			}
 
@@ -222,9 +227,9 @@ public class GLAAlpha extends Server implements Runnable {
 			//this.acceptVal.removeAll(this.oldAccept);
 			//	if(receivedAll) 
 			//		this.acceptVal.removeAll(this.LV.get(this.seq));
-			this.wakeReads();
+			//this.wakeReads();
 			//this.sendLearnt(this.seq, writes, reads);
-		//	this.s.apply(this.seq);
+			this.s.apply(this.seq);
 		}
 
 		public void sleep(int t) {
@@ -456,12 +461,17 @@ public class GLAAlpha extends Server implements Runnable {
 					this.decided.put(req.seq, req.writes);
 					this.learntReads.put(req.seq, req.reads);
 				} 	
-				if(req.seq == this.seq && req.round == this.r) 
+				if(req.seq == this.seq && req.round == this.r) { 
+					synchronized (lock4) {
 					this.received.add(req.me);
+					}
+				}
 			} else if(req.type.equals("reject")) {
 				if(req.seq == this.seq && req.round == this.r) {
 					this.acceptVal.addAll(req.writes);
+					synchronized (lock4) {
 					this.received.add(req.me);
+					}
 					synchronized (lock2) {
 						this.all.addAll(req.received);
 					}
@@ -469,7 +479,9 @@ public class GLAAlpha extends Server implements Runnable {
 			} else if(req.type.equals("accept")) {
 				if(req.seq == this.seq && req.round == this.r) { 
 					this.tally ++;
+					synchronized (lock4) {
 					this.received.add(req.me);
+					}
 				}
 			} else if(req.type.equals("getLearnt")) {
 				int[] tmp = this.maxSeq.get(req.me);

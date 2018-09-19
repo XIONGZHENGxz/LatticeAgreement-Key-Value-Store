@@ -21,7 +21,7 @@ public class Util {
 	public static int syncFreq = 5000;
 	public static int loop = 1000;
 	public static int freq = 7;
-	public static int threshold = 1500;
+	public static int threshold = 800;
 	public static int requestSize = 48;
 	public static int threadLimit = 100;
 	public static int cutTime = 15 * 1000;

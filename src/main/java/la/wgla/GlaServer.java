@@ -45,6 +45,7 @@ public class GlaServer extends Server{
 	public Condition econd;
 	public int f;
 	public int exeInd; //executed operation index
+	public int rmInd; //executed operation index
 	public TcpListener l;
 	public Random rand;
 	public SocketAcceptor socketAcceptor;
@@ -67,6 +68,7 @@ public class GlaServer extends Server{
 		this.readRes = new HashMap<>();
 
 		this.exeInd = -1;
+		this.rmInd = 0;
 		this.socketAcceptor = new SocketAcceptor(this, this.port);
 		this.f = f;
 		this.log = new HashSet<>();
@@ -79,15 +81,13 @@ public class GlaServer extends Server{
 		rcond = rlock.newCondition();
 		econd = elock.newCondition();
 		gla = new GLAAlpha(this);
-		/*
 		this.readExecutor = new ReadExecutor[Util.writer];
 		for(int i = 0; i < Util.writer; i++) {
 			readExecutor[i] = new ReadExecutor(this);
 			readExecutor[i].start();
 		}
-		this.executor = new Executor(this);
-		this.executor.start();
-		*/
+		//this.executor = new Executor(this);
+		//this.executor.start();
 		this.socketAcceptor.start();
 	}
 
@@ -119,20 +119,20 @@ public class GlaServer extends Server{
 		if(req.type == Type.GET) {
 			String kid = this.me + "" + this.gla.seq;
 			Op noop = new Op(Type.GET, kid, "");
-			/*
 			if(!this.reads.containsKey(kid)) reads.put(kid, new HashSet<Op>());
 			reads.get(kid).add(req);
 			this.gla.receiveRead(noop);
-			*/
+			/*
 			this.read(noop);
 			return this.get(req.key);
+			*/
 		}
 		else if(req.type == Type.PUT || req.type == Type.REMOVE) {
 			this.write(req);
 			//this.gla.receiveWrite(req);
 			return new Response(Result.TRUE, "");
 		} else {
-			//this.fail = true;
+			this.fail = true;
 			this.close();
 		}
 		return null;
@@ -184,7 +184,7 @@ public class GlaServer extends Server{
 				if(prev.contains(o)) continue;
 				this.put(o.key, o.val);
 			}
-			/*
+
 			for (Op o : this.gla.learntReads(i)) {
 				if(!this.reads.containsKey(o.key)) continue;
 				for(Op read : this.reads.get(o.key)) {
@@ -193,9 +193,14 @@ public class GlaServer extends Server{
 					readExecutor[ind].add(new Message(resp, socketAcceptor.socketMap.get(read.id)));
 				}
 			}
-			*/
 		}
 		this.exeInd = seq;
+		while(this.rmInd < this.exeInd - 1000) {
+			this.gla.decided.remove(this.rmInd);
+			this.gla.LV.remove(this.rmInd);
+			this.gla.learntReads.remove(this.rmInd);
+			this.rmInd ++;
+		}
 	}
 	
 	public void wakeResponder () {
