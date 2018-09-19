@@ -174,11 +174,9 @@ public class Client extends Thread{
 
 	public boolean reconnect() {
 		//System.out.println(this.id +" reconnecting...");
-		/*
 		try {
-			Thread.sleep(Util.TIMEOUT / 3 + rand.nextInt(2 * Util.TIMEOUT / 3));
+			Thread.sleep(Util.TIMEOUT / 4 + rand.nextInt(Util.TIMEOUT / 2));
 		} catch (Exception e) {}
-		*/
 		return this.connect();
 	}
 
